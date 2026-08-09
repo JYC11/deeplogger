@@ -1,8 +1,8 @@
-# Plan 01 — DeepLogger App Development (MVP)
+# Plan 01 — DiveLogger App Development (MVP)
 
 **Prerequisite**: `.plan/00-environment-setup.md` complete (green `fvm flutter doctor -v`).
 **Authority order**: `PRD.md` (v1.1, stakeholder-approved) > `AGENTS.md`. Key decisions already locked:
-- Official name: **DeepLogger** (`--project-name deeplogger`, display name "DeepLogger").
+- Official name: **DiveLogger** (`--project-name divelogger`, display name "DiveLogger").
 - SAC: industry-standard RMV (see PRD §5.2 — computed dynamically, never stored).
 - Photo grouping: 90-min intra-dive cap / 60-min new-dive gap (PRD §8).
 - Offline-first, no dive-computer integration, no accounts/cloud.
@@ -16,12 +16,12 @@ All three must pass before the milestone is considered done. Relevant skills in 
 ---
 
 ## M1 — Project scaffold
-1. `fvm flutter create --org com.deeplogger --project-name deeplogger --platforms ios,android .`
-   (Resulting IDs: `com.deeplogger.deeplogger` — acceptable default; change `--org` only if the user requests.)
+1. `fvm flutter create --org com.divelogger --project-name divelogger --platforms ios,android .`
+   (Resulting IDs: `com.divelogger.divelogger` — acceptable default; change `--org` only if the user requests.)
 2. Dependencies (`fvm flutter pub add`): `flutter_riverpod sqflite path path_provider photo_manager exif share_plus image intl`
    Dev: `flutter_lints` (+ `integration_test`, `flutter_driver:{sdk: flutter}` — driver extension gated behind `--dart-define=ENABLE_FLUTTER_DRIVER=true` in `main.dart` so the dart MCP server can drive the app; keep it out of release builds).
 3. Permissions:
-   - iOS `ios/Runner/Info.plist`: `NSPhotoLibraryUsageDescription` ("DeepLogger groups your dive photos into draft log entries and stores copies inside the app."), deployment target iOS 14.
+   - iOS `ios/Runner/Info.plist`: `NSPhotoLibraryUsageDescription` ("DiveLogger groups your dive photos into draft log entries and stores copies inside the app."), deployment target iOS 14.
    - Android `android/app/src/main/AndroidManifest.xml`: `READ_MEDIA_IMAGES` (+ `READ_EXTERNAL_STORAGE` with `maxSdkVersion="32"`), `minSdkVersion 23`.
 4. Folder layout per AGENTS.md: `lib/models|database|providers|screens|widgets|services`.
 5. `git add -A && git commit -m "feat: flutter scaffold with dependencies and permissions"` (if approved).

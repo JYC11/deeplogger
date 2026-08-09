@@ -2,7 +2,7 @@
 
 **Goal**: isolated Flutter/Dart toolchain (no global installs) + Android/iOS toolchains + MCP servers, ending in a green `flutter doctor`.
 **Context**: macOS 26.5.2 (arm64). Already present: Homebrew, git, Node 24 (nvm), Java 21 (sdkman), Xcode 26.5, CocoaPods 1.11.3 (**too old — upgraded below**). No iOS simulator runtimes yet. No Android SDK yet.
-**Repo root**: `/Users/admin/Desktop/code/deeplogger` (directory name stays as-is; the Flutter project name is `deeplogger`).
+**Repo root**: `/Users/admin/Desktop/code/deeplogger` (directory name stays as-is; the Flutter project name is `divelogger`).
 
 > Run tasks in order. Each task lists its dependencies. Do NOT skip the verification gates.
 
