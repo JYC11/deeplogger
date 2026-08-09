@@ -1,11 +1,14 @@
 # Plan 01 — DiveLogger App Development (MVP)
 
+> **STATUS: COMPLETE** — All 7 milestones (M1–M7) done. 48 tests passing, analyze clean, both APK + iOS builds verified, iOS simulator smoke test passed (SAC computed correctly at 23.3 L/min). Docs in `docs/getting-started.md` and `docs/development-guide.md`. Next: deferred work (Firebase App Distribution, real-device testing, l10n, additional widget tests).
+
 **Prerequisite**: `.plan/00-environment-setup.md` complete (green `fvm flutter doctor -v`).
 **Authority order**: `PRD.md` (v1.1, stakeholder-approved) > `AGENTS.md`. Key decisions already locked:
 - Official name: **DiveLogger** (`--project-name divelogger`, display name "DiveLogger").
 - SAC: industry-standard RMV (see PRD §5.2 — computed dynamically, never stored).
 - Photo grouping: 90-min intra-dive cap / 60-min new-dive gap (PRD §8).
 - Offline-first, no dive-computer integration, no accounts/cloud.
+- State management: Riverpod 3.x classic (NotifierProvider/AsyncNotifierProvider/FutureProvider) — user-approved decision replacing legacy StateNotifierProvider reference.
 
 **Gate after EVERY milestone** (in this order — format before checks):
 ```bash
@@ -15,7 +18,7 @@ All three must pass before the milestone is considered done. Relevant skills in 
 
 ---
 
-## M1 — Project scaffold
+## M1 — Project scaffold ✅
 1. `fvm flutter create --org com.divelogger --project-name divelogger --platforms ios,android .`
    (Resulting IDs: `com.divelogger.divelogger` — acceptable default; change `--org` only if the user requests.)
 2. Dependencies (`fvm flutter pub add`): `flutter_riverpod sqflite path path_provider photo_manager exif share_plus image intl`
@@ -26,7 +29,7 @@ All three must pass before the milestone is considered done. Relevant skills in 
 4. Folder layout per AGENTS.md: `lib/models|database|providers|screens|widgets|services`.
 5. `git add -A && git commit -m "feat: flutter scaffold with dependencies and permissions"` (if approved).
 
-## M2 — Data layer
+## M2 — Data layer ✅
 Depends on: M1.
 - `lib/models/`: `dive_log.dart`, `sighting.dart`, `certification.dart`, `gear_item.dart`, `dive_photo.dart` (plain immutable classes + `toMap`/`fromMap`; null-safe).
 - `lib/database/database_helper.dart`: singleton `DatabaseHelper`, versioned `onCreate`/`onUpgrade` migrations.
@@ -40,13 +43,13 @@ Depends on: M1.
 - `lib/services/sac_calculator.dart`: `SacResult? computeSac({startBar, endBar, durationMin, avgDepthM, tankSize})` implementing PRD §5.2 exactly (incl. tank-size parsing: `12L` → 12.0; `80 cu ft` → 80 × 28.3168 / 207; guards for duration ≤ 0 / end ≥ start / unknown volume → bar/min fallback or null).
 - Tests (`test/`): SAC formula + tank parsing + all guard rails; DB CRUD for every table; migration path. Use `sqflite_common_ffi` for host-side DB tests.
 
-## M3 — Core dive logbook UI
+## M3 — Core dive logbook UI ✅
 Depends on: M2.
-- Riverpod per AGENTS.md: `StateNotifierProvider` (mutations), `FutureProvider` (DB reads). Pure `build()` methods.
+- Riverpod 3.x per AGENTS.md: `NotifierProvider`/`AsyncNotifierProvider` (mutations), `FutureProvider` (DB reads). Pure `build()` methods.
 - Screens: dive list (desc by date) → dive detail (depth/duration/SAC prominent; expandable secondary section with tank/salinity/altitude + imperial conversions) → dive form (all PRD §5.1 fields incl. gear multi-select from master list, gas dropdown Air/Nitrox/Other+free-text, salinity dropdown).
 - Widget tests for list + detail + form validation (`.agents/skills/flutter-add-widget-test`).
 
-## M4 — Photo auto-log ("killer feature", PRD §5.3)
+## M4 — Photo auto-log ("killer feature", PRD §5.3) ✅
 Depends on: M3.
 - `lib/services/gallery_scanner.dart`: `photo_manager` permission flow (iOS limited-access handling) + timestamp extraction (native `createDateTime` first for speed; EXIF `DateTimeOriginal` → `DateTimeDigitized` → file timestamp fallback).
 - `lib/services/dive_grouper.dart`: pure function over sorted timestamps. Constants `kMaxIntraDiveGap = 90 min`, `kMinInterDiveGap = 60 min`. First photo starts a cluster; extend while gap-to-previous ≤ 90 min; any gap > 60 min starts a new cluster. Unit-test gaps of 30 / 75 / 120 min and single-photo edge cases.
@@ -54,19 +57,19 @@ Depends on: M3.
 - `lib/services/image_store.dart`: copy attached photos into `getApplicationDocumentsDirectory()` (never reference gallery paths); thumbnail-friendly compression.
 - Perf gate: 1,000-photo scan < 3 s on a mid-range device (PRD NFR-2) — batch `photo_manager` queries; avoid per-asset full EXIF reads.
 
-## M5 — Marine life, gear, certifications
+## M5 — Marine life, gear, certifications ✅
 Depends on: M3.
 - Sightings CRUD inside dive detail; photo picker constrained to the dive's `dive_photos`; thumbnails in detail view.
 - Gear master list screen (CRUD) + per-dive selection wired through `dive_log_gear`.
 - Certifications screen grouped by org (PADI/SSI/BSAC/…, free-text allowed); fields org/level/optional issue date/card photo (photo copied to app dir).
 
-## M6 — Instagram export (PRD §5.5)
+## M6 — Instagram export (PRD §5.5) ✅
 Depends on: M4 (photos), M5 (sightings).
 - `lib/services/share_card.dart`: render a card widget (site, date, duration, max depth, SAC, ≤4-photo grid, ≤5 species) → capture via `RepaintBoundary` → PNG bytes.
 - Share via `share_plus`; camera-roll fallback.
 - Widget test: card renders with 0–4 photos and 0–5 sightings without overflow (`.agents/skills/flutter-fix-layout-issues` if needed).
 
-## M7 — On-device verification
+## M7 — On-device verification ✅
 Depends on: M4–M6.
 - Run on iOS simulator AND Android emulator (`fvm flutter run -d …`).
 - Drive via MCP: `dart` server for runtime errors/widget tree/hot reload; `mobile-mcp` for screenshots, taps, permission dialogs.

@@ -7,18 +7,29 @@
 # fvm (Flutter SDK symlink — .fvmrc pin IS committed)
 .fvm/
 
+# IDE
+.idea/
+*.iml
+
 # Flutter/Dart (populated after plan 01 scaffold)
 .dart_tool/
 .packages
-build/
 .flutter-plugins
 .flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
 
 # Android/iOS build artifacts
 **/android/.gradle/
 **/android/local.properties
+**/android/key.properties
+*.jks
+*.keystore
 **/ios/Pods/
 **/ios/.symlinks/
 **/ios/Flutter/Flutter.framework
 **/ios/Flutter/Flutter.podspec
 **/ios/Flutter/ephemeral/
+**/ios/Flutter/.last_build_id
+**/ios/Runner/GeneratedPluginRegistrant.*

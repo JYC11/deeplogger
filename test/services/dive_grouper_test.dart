@@ -1,0 +1,120 @@
+import 'package:divelogger/services/dive_grouper.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  group('groupPhotosByDive', () {
+    test('empty list returns empty clusters', () {
+      expect(groupPhotosByDive([]), isEmpty);
+    });
+
+    test('single photo returns single cluster', () {
+      final ts = [DateTime(2026, 1, 1, 10, 0)];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 1);
+      expect(clusters[0].length, 1);
+      expect(clusters[0][0], ts[0]);
+    });
+
+    test('photos within 30 min gap are in same cluster', () {
+      final ts = [
+        DateTime(2026, 1, 1, 10, 0),
+        DateTime(2026, 1, 1, 10, 15),
+        DateTime(2026, 1, 1, 10, 30),
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 1);
+      expect(clusters[0].length, 3);
+    });
+
+    test('75 min gap starts a new cluster', () {
+      final ts = [
+        DateTime(2026, 1, 1, 10, 0),
+        DateTime(2026, 1, 1, 11, 15), // 75 min gap
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 2);
+      expect(clusters[0].length, 1);
+      expect(clusters[1].length, 1);
+    });
+
+    test('120 min gap starts a new cluster', () {
+      final ts = [
+        DateTime(2026, 1, 1, 10, 0),
+        DateTime(2026, 1, 1, 12, 0), // 120 min gap
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 2);
+    });
+
+    test('exactly 60 min gap stays in same cluster', () {
+      final ts = [
+        DateTime(2026, 1, 1, 10, 0),
+        DateTime(2026, 1, 1, 11, 0), // exactly 60 min
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 1);
+      expect(clusters[0].length, 2);
+    });
+
+    test('multiple clusters with varying gaps', () {
+      final ts = [
+        DateTime(2026, 1, 1, 9, 0),
+        DateTime(2026, 1, 1, 9, 20),
+        DateTime(2026, 1, 1, 9, 45),
+        DateTime(2026, 1, 1, 11, 30), // 105 min gap → new cluster
+        DateTime(2026, 1, 1, 11, 50),
+        DateTime(2026, 1, 1, 14, 0), // 130 min gap → new cluster
+        DateTime(2026, 1, 1, 14, 30),
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 3);
+      expect(clusters[0].length, 3); // 9:00, 9:20, 9:45
+      expect(clusters[1].length, 2); // 11:30, 11:50
+      expect(clusters[2].length, 2); // 14:00, 14:30
+    });
+
+    test('unsorted input is sorted before grouping', () {
+      final ts = [
+        DateTime(2026, 1, 1, 10, 30),
+        DateTime(2026, 1, 1, 10, 0),
+        DateTime(2026, 1, 1, 10, 15),
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 1);
+      expect(clusters[0][0], DateTime(2026, 1, 1, 10, 0));
+      expect(clusters[0][2], DateTime(2026, 1, 1, 10, 30));
+    });
+
+    test('cluster start and end times match first and last photo', () {
+      final ts = [
+        DateTime(2026, 1, 1, 9, 0),
+        DateTime(2026, 1, 1, 9, 30),
+        DateTime(2026, 1, 1, 9, 45),
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters[0].first, DateTime(2026, 1, 1, 9, 0));
+      expect(clusters[0].last, DateTime(2026, 1, 1, 9, 45));
+    });
+  });
+
+  group('createDraftDiveLogs', () {
+    test('creates one draft per cluster with start/end times', () {
+      final ts = [
+        DateTime(2026, 1, 1, 9, 0),
+        DateTime(2026, 1, 1, 9, 30),
+        DateTime(2026, 1, 1, 11, 30), // 120 min gap → new cluster
+      ];
+      final drafts = createDraftDiveLogs(ts);
+      expect(drafts.length, 2);
+      expect(drafts[0].isDraft, isTrue);
+      expect(drafts[0].startTime, DateTime(2026, 1, 1, 9, 0));
+      expect(drafts[0].endTime, DateTime(2026, 1, 1, 9, 30));
+      expect(drafts[1].startTime, DateTime(2026, 1, 1, 11, 30));
+      expect(drafts[1].endTime, DateTime(2026, 1, 1, 11, 30));
+    });
+
+    test('empty timestamps returns empty list', () {
+      expect(createDraftDiveLogs([]), isEmpty);
+    });
+  });
+}

@@ -10,7 +10,7 @@ You are a senior Flutter developer building **DiveLogger**, an offline-first div
 
 ## Tech Stack (Strict)
 - **Framework**: Flutter (latest stable).
-- **State Management**: Riverpod (use `StateNotifierProvider` for business logic, `FutureProvider` for DB reads).
+- **State Management**: Riverpod 3.x (`flutter_riverpod`, classic non-code-gen style). Use `NotifierProvider`+`Notifier` for sync business logic / form mutations, `AsyncNotifierProvider`+`AsyncNotifier` for async state with loading/error/data, and `FutureProvider` for one-shot DB reads. Do **not** use the legacy `StateNotifierProvider`/`StateNotifier` (moved to `legacy/` in 3.x). Prefer immutable state via `copyWith`; rebuild with `ref.watch`/`ref.read`, no `BuildContext` lookups for state.
 - **Database**: `sqflite` (SQLite) with a single `DatabaseHelper` class.
 - **Gallery/EXIF**: `photo_manager` + `exif` (for grouping photos).
 - **File System**: `path_provider` (store copied images in `getApplicationDocumentsDirectory()`).
@@ -80,6 +80,12 @@ Keep files organized in these folders:
 - MCP servers are configured in the project `opencode.json`: `dart` (official Dart/Flutter MCP via `fvm dart mcp-server`) and `mobile-mcp` (simulator/emulator control).
 - Execution plans for the next agent live in `.plan/` — work them in order.
 - Task tracking: filament (`fl` CLI, data in `.fl/` — gitignored). Plan steps are mirrored as filament epics grouped under two `plan` entities (`env-setup`, `app-development`); use `fl task ready` to find the next unblocked epic.
+
+# General development cycle
+- clarify requirements if unclear
+- write tests for the requirements
+- write code that satisfies the tests (TDD style)
+- bugs introduced should have a test written for them and then fixed
 
 ## Resolved Defaults (PRD §8)
 - **Units**: Metric primary; imperial conversions only in expanded detail sections.
