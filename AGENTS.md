@@ -79,6 +79,7 @@ Keep files organized in these folders:
 - Flutter/Dart are **not installed globally**. Use `fvm flutter ...` / `fvm dart ...` (version pinned in `.fvmrc`, SDKs live in `~/fvm/versions/`). If fvm is missing, run `.plan/00-environment-setup.md` first.
 - MCP servers are configured in the project `opencode.json`: `dart` (official Dart/Flutter MCP via `fvm dart mcp-server`) and `mobile-mcp` (simulator/emulator control).
 - Execution plans for the next agent live in `.plan/` — work them in order.
+- Task tracking: filament (`fl` CLI, data in `.fl/` — gitignored). Plan steps are mirrored as filament epics grouped under two `plan` entities (`env-setup`, `app-development`); use `fl task ready` to find the next unblocked epic.
 
 ## Resolved Defaults (PRD §8)
 - **Units**: Metric primary; imperial conversions only in expanded detail sections.

@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# filament (local task/knowledge DB)
+.fl/
+
 # fvm (Flutter SDK symlink — .fvmrc pin IS committed)
 .fvm/
 
