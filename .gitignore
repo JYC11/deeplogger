@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# fvm (Flutter SDK symlink — .fvmrc pin IS committed)
+.fvm/
+
+# Flutter/Dart (populated after plan 01 scaffold)
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Android/iOS build artifacts
+**/android/.gradle/
+**/android/local.properties
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/ephemeral/
