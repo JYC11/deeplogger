@@ -1,7 +1,7 @@
 # Plan 00 — Environment Setup (run before any app code)
 
 **Goal**: isolated Flutter/Dart toolchain (no global installs) + Android/iOS toolchains + MCP servers, ending in a green `flutter doctor`.
-**Context**: macOS 26.5.2 (arm64). Already present: Homebrew, git, Node 24 (nvm), Java 21 (sdkman), Xcode 26.5, CocoaPods 1.11.3 (**too old — upgraded below**). No iOS simulator runtimes yet. No Android SDK yet.
+**Context**: macOS 26.5.2 (arm64). Already present: Homebrew, git, Node 24 (nvm), Java 21 (sdkman), Xcode 26.5, CocoaPods 1.11.3 (**too old, root-owned system-ruby gem at `/usr/local/bin/pod` — uninstalled below; user-approved**). No iOS simulator runtimes yet. No Android SDK yet.
 **Repo root**: `/Users/admin/Desktop/code/deeplogger` (directory name stays as-is; the Flutter project name is `divelogger`).
 
 > Run tasks in order. Each task lists its dependencies. Do NOT skip the verification gates.
@@ -36,7 +36,9 @@ xcodebuild -downloadPlatform iOS        # installs the missing simulator runtime
 xcrun simctl list devicetypes           # pick latest iPhone type
 xcrun simctl create "iPhone Dev" <DEVICETYPE> <RUNTIME>
 xcrun simctl boot "iPhone Dev"          # gate: boots without error
-brew install cocoapods                  # upgrades 1.11.3 → current; lands in /opt/homebrew/bin
+# Old CocoaPods 1.11.3 is a root-owned system-ruby gem — uninstall it first (user-approved):
+sudo gem uninstall -aIx cocoapods cocoapods-core cocoapods-deintegrate cocoapods-downloader cocoapods-plugins cocoapods-search cocoapods-stats cocoapods-trunk cocoapods-try
+brew install cocoapods                  # lands in /opt/homebrew/bin
 hash -r; which pod && pod --version     # gate: /opt/homebrew/bin/pod, ≥ 1.15
 ```
 
@@ -87,7 +89,6 @@ Create `/Users/admin/Desktop/code/deeplogger/opencode.json`:
 ```
 - `dart` = official Dart & Flutter MCP (experimental; needs Dart ≥ 3.9 — satisfied by the pinned SDK). Gives the agent: analysis-error fixing, symbol resolution, pub.dev search, pubspec management, test running, and driving the running app (screenshots/taps/hot reload via DTD + flutter_driver).
 - `mobile-mcp` = simulator/emulator control (launch apps, screenshots, accessibility-tree interaction, crash logs).
-- Gotcha: if opencode can't spawn `npx` (nvm-managed Node), replace with the absolute path from `which npx`.
 - Gate: restart opencode in this repo; both servers appear as connected; `mobile_list_available_devices` returns the booted iOS sim and/or Android emulator.
 
 ## Task 7 — Commit checkpoint
