@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD): Offline Dive Logbook
 
-**Project Name:** DiveLogger  
+**Project Name:** DeepLogger  
 **Version:** 1.1 (Updated based on stakeholder feedback)  
 **Status:** Approved for Development  
 **Target Platform:** iOS & Android (Flutter)  
@@ -9,7 +9,7 @@
 ---
 
 ## 1. Executive Summary
-DiveLogger is a mobile application designed to streamline dive logging for recreational scuba divers. Unlike existing solutions (e.g., Subsurface—which is powerful but desktop/technical-heavy, and PADI—which is clean but requires constant internet and an account), DiveLogger combines **Subsurface's robust local data handling** with **PADI's intuitive UI**. 
+DeepLogger is a mobile application designed to streamline dive logging for recreational scuba divers. Unlike existing solutions (e.g., Subsurface—which is powerful but desktop/technical-heavy, and PADI—which is clean but requires constant internet and an account), DeepLogger combines **Subsurface's robust local data handling** with **PADI's intuitive UI**. 
 
 Unique differentiators include:
 - **Zero connectivity required** (no login, no cloud sync).
