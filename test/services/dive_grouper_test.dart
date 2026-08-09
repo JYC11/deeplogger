@@ -1,4 +1,4 @@
-import 'package:divelogger/services/dive_grouper.dart';
+import 'package:deeplogger/services/dive_grouper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

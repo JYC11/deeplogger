@@ -1,4 +1,4 @@
-# DiveLogger Development Environment Setup
+# DeepLogger Development Environment Setup
 
 This documents the full toolchain setup performed on this machine (macOS 26.5 arm64) so you can understand what's installed, where it lives, and how to verify it.
 
@@ -85,20 +85,20 @@ sdkmanager --sdk_root="$ANDROID_HOME" --list_installed    # verify
 ```
 
 #### AVD (Android Virtual Device)
-- **Name**: `divelogger_pixel`
+- **Name**: `deeplogger_pixel`
 - **Profile**: Pixel 7 (manual config)
 - **Image**: `system-images;android-36;google_apis;arm64-v8a`
 
 > **Known workaround**: the deprecated `avdmanager` (bundled in cmdline-tools) cannot enumerate system images in the new SDK 36 layout — it returns `Error: Package path is not valid. Valid system image paths are: null` even though the image is installed. The AVD was created by hand-writing the config files:
-> - `~/.android/avd/divelogger_pixel.ini` (path + target)
-> - `~/.android/avd/divelogger_pixel.avd/config.ini` (image.sysdir.1, abi.type, tag.id, hw.* fields)
+> - `~/.android/avd/deeplogger_pixel.ini` (path + target)
+> - `~/.android/avd/deeplogger_pixel.avd/config.ini` (image.sysdir.1, abi.type, tag.id, hw.* fields)
 >
 > The `emulator` binary reads these hand-crafted configs fine. This is recorded as a filament lesson (`fl lesson show sjasm7fh`).
 
 ```bash
 export ANDROID_HOME="$HOME/Library/Android/sdk"
-"$ANDROID_HOME/emulator/emulator" -list-avds    # verify → divelogger_pixel
-"$ANDROID_HOME/emulator/emulator" -avd divelogger_pixel    # boot
+"$ANDROID_HOME/emulator/emulator" -list-avds    # verify → deeplogger_pixel
+"$ANDROID_HOME/emulator/emulator" -avd deeplogger_pixel    # boot
 ```
 
 ### 5. Java (for Android Gradle)

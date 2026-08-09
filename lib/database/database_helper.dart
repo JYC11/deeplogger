@@ -41,7 +41,7 @@ class DatabaseHelper {
   Future<Database> _open() async {
     final dbPath = await getDatabasesPath();
     return openDatabase(
-      p.join(dbPath, 'divelogger.db'),
+      p.join(dbPath, 'deeplogger.db'),
       version: _version,
       onConfigure: onConfigure,
       onCreate: onCreate,

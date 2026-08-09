@@ -1,5 +1,5 @@
-import 'package:divelogger/database/database_helper.dart';
-import 'package:divelogger/providers/dive_providers.dart';
+import 'package:deeplogger/database/database_helper.dart';
+import 'package:deeplogger/providers/dive_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';

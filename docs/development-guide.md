@@ -1,10 +1,10 @@
-# DiveLogger — Development Guide
+# DeepLogger — Development Guide
 
-This document covers the architecture, code conventions, testing strategy, and key business logic of DiveLogger. Read this before making changes to the codebase.
+This document covers the architecture, code conventions, testing strategy, and key business logic of DeepLogger. Read this before making changes to the codebase.
 
 ## Architecture overview
 
-DiveLogger is an offline-first mobile app built with Flutter. All data is stored locally in SQLite — no cloud, no accounts, no network calls.
+DeepLogger is an offline-first mobile app built with Flutter. All data is stored locally in SQLite — no cloud, no accounts, no network calls.
 
 ### Layered structure
 
@@ -77,7 +77,7 @@ We use `flutter_riverpod` 3.4.2 in classic (non-code-gen) style. No `@riverpod` 
 
 ## Database schema
 
-Six tables in a single SQLite file (`divelogger.db`), versioned at `version: 1`:
+Six tables in a single SQLite file (`deeplogger.db`), versioned at `version: 1`:
 
 | Table | Purpose | Key columns |
 |---|---|---|
@@ -195,7 +195,7 @@ await tester.pumpWidget(
     overrides: [
       diveListProvider.overrideWith((ref) async => fakeDiveLogs),
     ],
-    child: const DiveLoggerApp(),
+    child: const DeepLoggerApp(),
   ),
 );
 await tester.pumpAndSettle();
@@ -256,7 +256,7 @@ Messages follow conventional commits:
 
 ### iOS (`ios/Runner/Info.plist`)
 
-- `NSPhotoLibraryUsageDescription`: "DiveLogger groups your dive photos into draft log entries and stores copies inside the app."
+- `NSPhotoLibraryUsageDescription`: "DeepLogger groups your dive photos into draft log entries and stores copies inside the app."
 - Deployment target: iOS 14.0
 
 ### Android (`android/app/src/main/AndroidManifest.xml`)

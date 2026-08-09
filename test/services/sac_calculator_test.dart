@@ -1,4 +1,4 @@
-import 'package:divelogger/services/sac_calculator.dart';
+import 'package:deeplogger/services/sac_calculator.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

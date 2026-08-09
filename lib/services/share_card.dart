@@ -131,7 +131,7 @@ class ShareCard extends StatelessWidget {
             const SizedBox(height: 24),
             Center(
               child: Text(
-                'DiveLogger',
+                'DeepLogger',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 18,
@@ -316,7 +316,7 @@ class ShareCardService {
     await SharePlus.instance.share(
       ShareParams(
         files: [XFile(filePath)],
-        text: 'My dive at ${log.location ?? "unknown"} #DiveLogger',
+        text: 'My dive at ${log.location ?? "unknown"} #DeepLogger',
       ),
     );
   }

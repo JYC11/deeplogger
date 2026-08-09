@@ -19,7 +19,7 @@ class DiveListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DiveLogger'),
+        title: const Text('DeepLogger'),
         actions: [
           IconButton(
             icon: const Icon(Icons.photo_library),

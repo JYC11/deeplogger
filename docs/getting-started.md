@@ -1,4 +1,4 @@
-# DiveLogger — Getting Started
+# DeepLogger — Getting Started
 
 How to run the app on your computer. This assumes the environment setup (Plan 00) is already complete — if not, see `docs/environment-setup.md` first.
 
@@ -62,14 +62,14 @@ This enables the `flutter_driver` extension in `lib/main.dart`. Without the flag
 
 ```bash
 export ANDROID_HOME="$HOME/Library/Android/sdk"
-avdmanager create avd -n divelogger_pixel -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7
+avdmanager create avd -n deeplogger_pixel -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7
 ```
 
 ### Boot and run
 
 ```bash
-$ANDROID_HOME/emulator/emulator -avd divelogger_pixel &
-fvm flutter run -d divelogger_pixel
+$ANDROID_HOME/emulator/emulator -avd deeplogger_pixel &
+fvm flutter run -d deeplogger_pixel
 ```
 
 ## Building release APK / IPA
@@ -101,7 +101,7 @@ fvm flutter build ios --simulator
 ### On the simulator
 
 - Press the Home button in the Simulator app (Cmd+Shift+H), or
-- From the terminal: `xcrun simctl terminate booted com.divelogger.divelogger`
+- From the terminal: `xcrun simctl terminate booted com.deeplogger.deeplogger`
 - From opencode/mobile-mcp: the `mobile_terminate_app` tool
 
 ### Shutting down the simulator entirely
@@ -126,4 +126,4 @@ osascript -e 'quit app "Simulator"'
 
 **"databaseFactory not initialized"** (in tests only) — you need both `sqfliteFfiInit()` and `databaseFactory = databaseFactoryFfi` in your test's `setUpAll`. See `test/database/database_helper_test.dart` for the pattern.
 
-**Permission denied for photos** — the first time you tap "Scan Gallery", iOS will show a permission dialog. If you deny it, the app will show an error message. Grant access in Settings > Privacy > Photos > DiveLogger.
+**Permission denied for photos** — the first time you tap "Scan Gallery", iOS will show a permission dialog. If you deny it, the app will show an error message. Grant access in Settings > Privacy > Photos > DeepLogger.

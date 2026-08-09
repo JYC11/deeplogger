@@ -4,7 +4,7 @@
 
 **Goal**: isolated Flutter/Dart toolchain (no global installs) + Android/iOS toolchains + MCP servers, ending in a green `flutter doctor`.
 **Context**: macOS 26.5.2 (arm64). Already present: Homebrew, git, Node 24 (nvm), Java 21 (sdkman), Xcode 26.5, CocoaPods 1.11.3 (**too old, root-owned system-ruby gem at `/usr/local/bin/pod` — uninstalled below; user-approved**). No iOS simulator runtimes yet. No Android SDK yet.
-**Repo root**: `/Users/admin/Desktop/code/deeplogger` (directory name stays as-is; the Flutter project name is `divelogger`).
+**Repo root**: `/Users/admin/Desktop/code/deeplogger` (directory name stays as-is; the Flutter project name is `deeplogger`).
 
 > Run tasks in order. Each task lists its dependencies. Do NOT skip the verification gates.
 
@@ -54,7 +54,7 @@ sdkmanager --sdk_root="$ANDROID_HOME" \
   "platform-tools" "platforms;android-36" "build-tools;36.0.0" \
   "emulator" "system-images;android-36;google_apis;arm64-v8a"
 fvm flutter config --android-sdk "$ANDROID_HOME"   # stored in Flutter's own config; no shell-profile edits
-avdmanager create avd -n divelogger_pixel \
+avdmanager create avd -n deeplogger_pixel \
   -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7
 ```
 Notes:

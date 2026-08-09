@@ -1,9 +1,9 @@
-import 'package:divelogger/database/database_helper.dart';
-import 'package:divelogger/models/certification.dart';
-import 'package:divelogger/models/dive_log.dart';
-import 'package:divelogger/models/dive_photo.dart';
-import 'package:divelogger/models/gear_item.dart';
-import 'package:divelogger/models/sighting.dart';
+import 'package:deeplogger/database/database_helper.dart';
+import 'package:deeplogger/models/certification.dart';
+import 'package:deeplogger/models/dive_log.dart';
+import 'package:deeplogger/models/dive_photo.dart';
+import 'package:deeplogger/models/gear_item.dart';
+import 'package:deeplogger/models/sighting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 

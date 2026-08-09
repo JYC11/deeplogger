@@ -1,7 +1,7 @@
-import 'package:divelogger/models/dive_log.dart';
-import 'package:divelogger/models/sighting.dart';
-import 'package:divelogger/services/sac_calculator.dart';
-import 'package:divelogger/services/share_card.dart';
+import 'package:deeplogger/models/dive_log.dart';
+import 'package:deeplogger/models/sighting.dart';
+import 'package:deeplogger/services/sac_calculator.dart';
+import 'package:deeplogger/services/share_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -48,7 +48,7 @@ void main() {
       expect(find.text('Great Barrier Reef'), findsOneWidget);
       expect(find.text('18.5m'), findsOneWidget);
       expect(find.text('45min'), findsOneWidget);
-      expect(find.text('DiveLogger'), findsOneWidget);
+      expect(find.text('DeepLogger'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

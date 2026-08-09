@@ -1,6 +1,6 @@
-import 'package:divelogger/main.dart';
-import 'package:divelogger/models/dive_log.dart';
-import 'package:divelogger/providers/dive_providers.dart';
+import 'package:deeplogger/main.dart';
+import 'package:deeplogger/models/dive_log.dart';
+import 'package:deeplogger/providers/dive_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,12 +10,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [diveListProvider.overrideWith((ref) async => [])],
-        child: const DiveLoggerApp(),
+        child: const DeepLoggerApp(),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('DiveLogger'), findsOneWidget);
+    expect(find.text('DeepLogger'), findsOneWidget);
     expect(find.text('No dives yet'), findsOneWidget);
     expect(find.byIcon(Icons.add), findsOneWidget);
   });
@@ -42,7 +42,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [diveListProvider.overrideWith((ref) async => logs)],
-        child: const DiveLoggerApp(),
+        child: const DeepLoggerApp(),
       ),
     );
     await tester.pumpAndSettle();
@@ -70,7 +70,7 @@ void main() {
             ],
           ),
         ],
-        child: const DiveLoggerApp(),
+        child: const DeepLoggerApp(),
       ),
     );
     await tester.pumpAndSettle();
@@ -83,7 +83,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [diveListProvider.overrideWith((ref) async => [])],
-        child: const DiveLoggerApp(),
+        child: const DeepLoggerApp(),
       ),
     );
     await tester.pumpAndSettle();

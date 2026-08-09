@@ -8,16 +8,16 @@ void main() {
   if (const bool.fromEnvironment('ENABLE_FLUTTER_DRIVER')) {
     enableFlutterDriverExtension();
   }
-  runApp(const ProviderScope(child: DiveLoggerApp()));
+  runApp(const ProviderScope(child: DeepLoggerApp()));
 }
 
-class DiveLoggerApp extends StatelessWidget {
-  const DiveLoggerApp({super.key});
+class DeepLoggerApp extends StatelessWidget {
+  const DeepLoggerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'DiveLogger',
+      title: 'DeepLogger',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
