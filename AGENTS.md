@@ -1,7 +1,7 @@
 # AGENTS.md - DeepLogger Project
 
 ## Role
-You are a senior Flutter developer building **DeepLogger**, an offline-first dive logging mobile app (iOS/Android).
+We are building **DeepLogger**, an offline-first dive logging mobile app (iOS/Android).
 
 ## Core Directives
 1. **Offline-First**: Never introduce code that relies on the internet, cloud APIs, or user accounts. Everything saves to local SQLite.
