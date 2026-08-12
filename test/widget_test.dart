@@ -1,6 +1,7 @@
 import 'package:deeplogger/database/sort_fields.dart';
 import 'package:deeplogger/main.dart';
 import 'package:deeplogger/models/dive_log.dart';
+import 'package:deeplogger/providers/dive_providers.dart';
 import 'package:deeplogger/providers/list_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -104,6 +105,72 @@ void main() {
 
     expect(find.text('New Dive'), findsOneWidget);
     expect(find.text('Basic'), findsOneWidget);
+  });
+
+  testWidgets('popup menu shows Gear and Certifications', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          diveListNotifierProvider.overrideWith(() => _StubListNotifier([])),
+        ],
+        child: const DeepLoggerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Gear'), findsOneWidget);
+    expect(find.text('Certifications'), findsOneWidget);
+  });
+
+  testWidgets('Scan Gallery icon is present and tappable', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          diveListNotifierProvider.overrideWith(() => _StubListNotifier([])),
+        ],
+        child: const DeepLoggerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Scan Gallery'), findsOneWidget);
+    await tester.tap(find.byTooltip('Scan Gallery'));
+    await tester.pumpAndSettle();
+
+    // Scan screen empty-state prompt (unique to that screen).
+    expect(find.textContaining('Scan your gallery'), findsOneWidget);
+  });
+
+  testWidgets('list tap navigates to detail screen', (tester) async {
+    final logs = [
+      DiveLog(
+        id: 1,
+        startTime: DateTime(2026, 1, 15),
+        location: 'January Reef',
+        maxDepthM: 18.0,
+        durationMin: 45,
+      ),
+    ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          diveListNotifierProvider.overrideWith(() => _StubListNotifier(logs)),
+          diveDetailProvider.overrideWith(
+            (ref, id) async => logs.firstWhere((l) => l.id == id),
+          ),
+        ],
+        child: const DeepLoggerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('January Reef'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dive Detail'), findsOneWidget);
   });
 }
 
