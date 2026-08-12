@@ -34,21 +34,29 @@ class DiveDetailScreen extends ConsumerWidget {
                         icon: const Icon(Icons.share),
                         tooltip: 'Share',
                         onPressed: () async {
-                          final photos = await ref
-                              .read(databaseProvider)
-                              .getDivePhotosForLog(diveId);
-                          final sightings = await ref
-                              .read(databaseProvider)
-                              .getSightingsForLog(diveId);
-                          final sac = ref.read(sacProvider(log));
-                          if (context.mounted) {
-                            await ShareCardService.showPreviewAndShare(
-                              context: context,
-                              log: log,
-                              photos: photos.map((p) => p.localPath).toList(),
-                              sightings: sightings,
-                              sac: sac,
-                            );
+                          try {
+                            final photos = await ref
+                                .read(databaseProvider)
+                                .getDivePhotosForLog(diveId);
+                            final sightings = await ref
+                                .read(databaseProvider)
+                                .getSightingsForLog(diveId);
+                            final sac = ref.read(sacProvider(log));
+                            if (context.mounted) {
+                              await ShareCardService.showPreviewAndShare(
+                                context: context,
+                                log: log,
+                                photos: photos.map((p) => p.localPath).toList(),
+                                sightings: sightings,
+                                sac: sac,
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Share failed: $e')),
+                              );
+                            }
                           }
                         },
                       ),

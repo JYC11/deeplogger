@@ -77,14 +77,32 @@ class GalleryScanner {
     final allPath = assetPaths.first;
     final assets = await allPath.getAssetListRange(start: 0, end: maxAssets);
 
+    // Parallelize per-asset timestamp extraction in chunks (G1). AssetEntity
+    // is a platform-channel handle and cannot cross isolates, so we chunk
+    // Future.wait on the platform thread (8 at a time) rather than using
+    // compute(). The dominant cost is sequential originFile/EXIF I/O that
+    // chunking addresses.
+    const chunkSize = 8;
     final photos = <ScannedPhoto>[];
-
-    for (final asset in assets) {
-      final ts = await _extractTimestamp(asset);
-      if (ts != null) {
-        photos.add(
-          ScannedPhoto(takenAt: ts, resolveFile: () => asset.originFile),
-        );
+    for (var i = 0; i < assets.length; i += chunkSize) {
+      final end = (i + chunkSize > assets.length)
+          ? assets.length
+          : i + chunkSize;
+      final chunk = assets.sublist(i, end);
+      final results = await Future.wait(
+        chunk.map(
+          (asset) => _extractTimestamp(asset).then(
+            (ts) => ts == null
+                ? null
+                : ScannedPhoto(
+                    takenAt: ts,
+                    resolveFile: () => asset.originFile,
+                  ),
+          ),
+        ),
+      );
+      for (final p in results) {
+        if (p != null) photos.add(p);
       }
     }
 
