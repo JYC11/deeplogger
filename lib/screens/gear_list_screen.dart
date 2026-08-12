@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/gear_item.dart';
 import '../providers/dive_providers.dart';
 import '../providers/gear_form_provider.dart';
+import '../providers/list_providers.dart';
 
 class GearListScreen extends ConsumerStatefulWidget {
   const GearListScreen({super.key});
@@ -17,7 +20,7 @@ class _GearListScreenState extends ConsumerState<GearListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncGear = ref.watch(gearListProvider);
+    final asyncState = ref.watch(gearListNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Gear')),
@@ -43,18 +46,19 @@ class _GearListScreenState extends ConsumerState<GearListScreen> {
                   (c) => DropdownMenuItem<String?>(value: c, child: Text(c)),
                 ),
               ],
-              onChanged: (v) => setState(() => _categoryFilter = v),
+              onChanged: (v) {
+                setState(() => _categoryFilter = v);
+                ref
+                    .read(gearListNotifierProvider.notifier)
+                    .setCategoryFilter(v);
+              },
             ),
           ),
           Expanded(
-            child: asyncGear.when(
-              data: (items) {
-                final filtered = _categoryFilter == null
-                    ? items
-                    : items
-                          .where((g) => g.category == _categoryFilter)
-                          .toList();
-                if (filtered.isEmpty) {
+            child: asyncState.when(
+              data: (state) {
+                final items = state.items;
+                if (items.isEmpty) {
                   return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -69,9 +73,9 @@ class _GearListScreenState extends ConsumerState<GearListScreen> {
                   );
                 }
                 return ListView.builder(
-                  itemCount: filtered.length,
+                  itemCount: items.length,
                   itemBuilder: (context, index) {
-                    final item = filtered[index];
+                    final item = items[index];
                     return ListTile(
                       leading: const Icon(Icons.inventory_2),
                       title: Text(item.name),
@@ -90,7 +94,11 @@ class _GearListScreenState extends ConsumerState<GearListScreen> {
                               await ref
                                   .read(databaseProvider)
                                   .deleteGearItem(item.id!);
-                              ref.invalidate(gearListProvider);
+                              unawaited(
+                                ref
+                                    .read(gearListNotifierProvider.notifier)
+                                    .refresh(),
+                              );
                             },
                           ),
                         ],
@@ -202,7 +210,7 @@ class _GearDialog extends ConsumerWidget {
             final notifier = ref.read(gearFormProvider(existingId).notifier);
             final ok = await notifier.save();
             if (ok) {
-              ref.invalidate(gearListProvider);
+              unawaited(ref.read(gearListNotifierProvider.notifier).refresh());
               if (context.mounted) Navigator.pop(context);
             }
           },

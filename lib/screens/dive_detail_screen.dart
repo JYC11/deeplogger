@@ -201,6 +201,11 @@ class DiveDetailView extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
+        // Photos section (F1)
+        _PhotosSection(diveId: diveId),
+
+        const SizedBox(height: 16),
+
         // Marine life sightings
         _SightingsSection(diveId: diveId),
       ],
@@ -213,6 +218,60 @@ class DiveDetailView extends ConsumerWidget {
       return 'Other: ${log.gasOther}';
     }
     return log.gasType!;
+  }
+}
+
+/// Grid of photos attached to the dive (F1). Uses thumbnails with memory
+/// hints and an errorBuilder so deleted source files don't crash the view.
+class _PhotosSection extends ConsumerWidget {
+  const _PhotosSection({required this.diveId});
+
+  final int diveId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncPhotos = ref.watch(divePhotosProvider(diveId));
+    return asyncPhotos.when(
+      data: (photos) {
+        if (photos.isEmpty) return const SizedBox.shrink();
+        return ExpansionTile(
+          title: Text('Photos (${photos.length})'),
+          initiallyExpanded: true,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: photos.map((photo) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      File(photo.localPath),
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      cacheWidth: 200,
+                      errorBuilder: (_, _, _) => Container(
+                        width: 100,
+                        height: 100,
+                        color: Colors.grey.shade300,
+                        child: const Icon(Icons.broken_image),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('Loading photos...'),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+    );
   }
 }
 

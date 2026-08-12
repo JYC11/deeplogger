@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/dive_log.dart';
-import '../providers/dive_providers.dart';
+import '../models/scanned_photo.dart';
+import '../providers/list_providers.dart';
 import '../services/dive_grouper.dart';
+import '../services/draft_completer.dart';
 import '../services/gallery_scanner.dart';
 import 'dive_form_screen.dart';
 
@@ -18,7 +21,7 @@ class ScanGalleryScreen extends ConsumerStatefulWidget {
 class _ScanGalleryScreenState extends ConsumerState<ScanGalleryScreen> {
   bool _scanning = false;
   String? _error;
-  List<DiveLog> _drafts = [];
+  List<DraftDive> _drafts = [];
 
   Future<void> _scan() async {
     setState(() {
@@ -43,8 +46,8 @@ class _ScanGalleryScreenState extends ConsumerState<ScanGalleryScreen> {
         }
       }
 
-      final timestamps = await scanner.scanGalleryTimestamps();
-      if (timestamps.isEmpty) {
+      final photos = await scanner.scanGalleryTimestamps();
+      if (photos.isEmpty) {
         setState(() {
           _scanning = false;
           _error = 'No photos with timestamps found in your gallery.';
@@ -52,7 +55,7 @@ class _ScanGalleryScreenState extends ConsumerState<ScanGalleryScreen> {
         return;
       }
 
-      final drafts = createDraftDiveLogs(timestamps);
+      final drafts = groupScannedPhotos(photos);
 
       setState(() {
         _scanning = false;
@@ -142,6 +145,7 @@ class _ScanGalleryScreenState extends ConsumerState<ScanGalleryScreen> {
         ..._drafts.map(
           (draft) => _DraftTile(
             draft: draft,
+            photoCount: draft.photos.length,
             onComplete: () => _completeDraft(draft),
             onDiscard: () => _discardDraft(draft),
           ),
@@ -150,20 +154,29 @@ class _ScanGalleryScreenState extends ConsumerState<ScanGalleryScreen> {
     );
   }
 
-  Future<void> _completeDraft(DiveLog draft) async {
-    final db = ref.read(databaseProvider);
-    final id = await db.insertDiveLog(draft);
-
-    if (mounted) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => DiveFormScreen(existingLogId: id)),
+  Future<void> _completeDraft(DraftDive draft) async {
+    final result = await DraftCompleter.instance.complete(draft: draft);
+    if (!mounted) return;
+    // Surface partial-failure counts (E2).
+    if (result.skippedCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${result.attachedCount} of ${draft.photos.length} photos attached',
+          ),
+        ),
       );
-      ref.invalidate(diveListProvider);
     }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DiveFormScreen(existingLogId: result.diveLogId),
+      ),
+    );
+    unawaited(ref.read(diveListNotifierProvider.notifier).refresh());
   }
 
-  void _discardDraft(DiveLog draft) {
+  void _discardDraft(DraftDive draft) {
     setState(() {
       _drafts.remove(draft);
     });
@@ -173,11 +186,13 @@ class _ScanGalleryScreenState extends ConsumerState<ScanGalleryScreen> {
 class _DraftTile extends StatelessWidget {
   const _DraftTile({
     required this.draft,
+    required this.photoCount,
     required this.onComplete,
     required this.onDiscard,
   });
 
-  final DiveLog draft;
+  final DraftDive draft;
+  final int photoCount;
   final VoidCallback onComplete;
   final VoidCallback onDiscard;
 
@@ -185,23 +200,18 @@ class _DraftTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final start = draft.startTime;
     final end = draft.endTime;
-    final duration = start != null && end != null
-        ? end.difference(start)
-        : Duration.zero;
+    final duration = end.difference(start);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
         leading: const Icon(Icons.edit_note, color: Colors.orange),
-        title: Text(
-          start != null
-              ? '${start.day}/${start.month}/${start.year}'
-              : 'Unknown date',
-        ),
+        title: Text('${start.day}/${start.month}/${start.year}'),
         subtitle: Text(
-          '${start?.toString().split(' ').last.split('.').first ?? ''} - '
-          '${end?.toString().split(' ').last.split('.').first ?? ''}'
-          '${duration.inMinutes > 0 ? ' (${duration.inMinutes} min)' : ''}',
+          '${start.toString().split(' ').last.split('.').first} - '
+          '${end.toString().split(' ').last.split('.').first}'
+          '${duration.inMinutes > 0 ? ' (${duration.inMinutes} min)' : ''}'
+          ' · $photoCount photo${photoCount == 1 ? '' : 's'}',
         ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {

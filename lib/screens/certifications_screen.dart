@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,6 +10,7 @@ import 'package:intl/intl.dart';
 import '../models/certification.dart';
 import '../providers/certification_form_provider.dart';
 import '../providers/dive_providers.dart';
+import '../providers/list_providers.dart';
 import '../services/image_store.dart';
 
 class CertificationsScreen extends ConsumerWidget {
@@ -15,7 +18,7 @@ class CertificationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncCerts = ref.watch(certificationListProvider);
+    final asyncState = ref.watch(certificationListNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Certifications')),
@@ -23,8 +26,9 @@ class CertificationsScreen extends ConsumerWidget {
         onPressed: () => _showCertDialog(context, ref, null),
         child: const Icon(Icons.add),
       ),
-      body: asyncCerts.when(
-        data: (certs) {
+      body: asyncState.when(
+        data: (state) {
+          final certs = state.certs;
           if (certs.isEmpty) {
             return const Center(
               child: Column(
@@ -79,7 +83,13 @@ class CertificationsScreen extends ConsumerWidget {
                             await ref
                                 .read(databaseProvider)
                                 .deleteCertification(cert.id!);
-                            ref.invalidate(certificationListProvider);
+                            unawaited(
+                              ref
+                                  .read(
+                                    certificationListNotifierProvider.notifier,
+                                  )
+                                  .refresh(),
+                            );
                           },
                         ),
                       ],
@@ -236,7 +246,9 @@ class _CertDialog extends ConsumerWidget {
             );
             final ok = await notifier.save();
             if (ok) {
-              ref.invalidate(certificationListProvider);
+              unawaited(
+                ref.read(certificationListNotifierProvider.notifier).refresh(),
+              );
               if (context.mounted) Navigator.pop(context);
             }
           },

@@ -1,21 +1,57 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../database/sort_fields.dart';
 import '../models/dive_log.dart';
 import '../providers/dive_providers.dart';
+import '../providers/list_providers.dart';
 import 'certifications_screen.dart';
 import 'dive_detail_screen.dart';
 import 'dive_form_screen.dart';
 import 'gear_list_screen.dart';
 import 'scan_gallery_screen.dart';
 
-class DiveListScreen extends ConsumerWidget {
+class DiveListScreen extends ConsumerStatefulWidget {
   const DiveListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncLogs = ref.watch(diveListProvider);
+  ConsumerState<DiveListScreen> createState() => _DiveListScreenState();
+}
+
+class _DiveListScreenState extends ConsumerState<DiveListScreen> {
+  final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+  bool _searchVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll < 200) {
+      unawaited(ref.read(diveListNotifierProvider.notifier).loadMore());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asyncState = ref.watch(diveListNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -29,8 +65,18 @@ class DiveListScreen extends ConsumerWidget {
                 context,
                 MaterialPageRoute(builder: (_) => const ScanGalleryScreen()),
               );
-              ref.invalidate(diveListProvider);
+              unawaited(ref.read(diveListNotifierProvider.notifier).refresh());
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sort',
+            onPressed: () => _showSortMenu(context, ref),
+          ),
+          IconButton(
+            icon: Icon(_searchVisible ? Icons.search_off : Icons.search),
+            tooltip: 'Search',
+            onPressed: () => setState(() => _searchVisible = !_searchVisible),
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -66,6 +112,26 @@ class DiveListScreen extends ConsumerWidget {
             ],
           ),
         ],
+        bottom: _searchVisible
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: 'Search location or notes...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => ref
+                        .read(diveListNotifierProvider.notifier)
+                        .setSearch(v),
+                  ),
+                ),
+              )
+            : null,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -73,13 +139,15 @@ class DiveListScreen extends ConsumerWidget {
             context,
             MaterialPageRoute(builder: (_) => const DiveFormScreen()),
           );
-          ref.invalidate(diveListProvider);
+          unawaited(ref.read(diveListNotifierProvider.notifier).refresh());
         },
         child: const Icon(Icons.add),
       ),
-      body: asyncLogs.when(
-        data: (logs) {
-          if (logs.isEmpty) {
+      body: asyncState.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e')),
+        data: (state) {
+          if (state.logs.isEmpty) {
             return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -94,17 +162,78 @@ class DiveListScreen extends ConsumerWidget {
             );
           }
           return ListView.builder(
-            itemCount: logs.length,
+            controller: _scrollController,
+            itemCount: state.logs.length + (state.hasMore ? 1 : 0),
             itemBuilder: (context, index) {
-              final log = logs[index];
-              return DiveListTile(log: log);
+              if (index == state.logs.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              return DiveListTile(log: state.logs[index]);
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
       ),
     );
+  }
+
+  void _showSortMenu(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) {
+        final current = ref.read(diveListNotifierProvider).requireValue;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(title: const Text('Sort field')),
+              for (final field in DiveLogSortField.values)
+                // ignore: deprecated_member_use
+                RadioListTile<DiveLogSortField>(
+                  value: field,
+                  // ignore: deprecated_member_use
+                  groupValue: current.sortField,
+                  title: Text(_sortFieldLabel(field)),
+                  // ignore: deprecated_member_use
+                  onChanged: (v) {
+                    if (v == null) return;
+                    ref
+                        .read(diveListNotifierProvider.notifier)
+                        .setSort(v, current.sortDesc);
+                    Navigator.pop(context);
+                  },
+                ),
+              const Divider(),
+              SwitchListTile(
+                title: Text(current.sortDesc ? 'Descending' : 'Ascending'),
+                value: current.sortDesc,
+                onChanged: (v) {
+                  ref
+                      .read(diveListNotifierProvider.notifier)
+                      .setSort(current.sortField, v);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _sortFieldLabel(DiveLogSortField f) {
+    switch (f) {
+      case DiveLogSortField.startTime:
+        return 'Start time';
+      case DiveLogSortField.location:
+        return 'Location';
+      case DiveLogSortField.maxDepthM:
+        return 'Max depth';
+      case DiveLogSortField.durationMin:
+        return 'Duration';
+    }
   }
 }
 
@@ -136,7 +265,7 @@ class DiveListTile extends ConsumerWidget {
           context,
           MaterialPageRoute(builder: (_) => DiveDetailScreen(diveId: log.id!)),
         );
-        ref.invalidate(diveListProvider);
+        unawaited(ref.read(diveListNotifierProvider.notifier).refresh());
       },
     );
   }

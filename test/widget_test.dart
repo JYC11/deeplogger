@@ -1,6 +1,7 @@
+import 'package:deeplogger/database/sort_fields.dart';
 import 'package:deeplogger/main.dart';
 import 'package:deeplogger/models/dive_log.dart';
-import 'package:deeplogger/providers/dive_providers.dart';
+import 'package:deeplogger/providers/list_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +15,9 @@ void main() {
   testWidgets('app shows empty state when no dives', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [diveListProvider.overrideWith((ref) async => [])],
+        overrides: [
+          diveListNotifierProvider.overrideWith(() => _StubListNotifier([])),
+        ],
         child: const DeepLoggerApp(),
       ),
     );
@@ -26,7 +29,6 @@ void main() {
   });
 
   testWidgets('list shows dives sorted by date desc', (tester) async {
-    // DB returns sorted by start_time DESC; test data mirrors that.
     final logs = [
       DiveLog(
         id: 2,
@@ -46,7 +48,9 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [diveListProvider.overrideWith((ref) async => logs)],
+        overrides: [
+          diveListNotifierProvider.overrideWith(() => _StubListNotifier(logs)),
+        ],
         child: const DeepLoggerApp(),
       ),
     );
@@ -64,15 +68,15 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          diveListProvider.overrideWith(
-            (ref) async => [
+          diveListNotifierProvider.overrideWith(
+            () => _StubListNotifier([
               DiveLog(
                 id: 1,
                 startTime: DateTime(2026, 2, 1),
                 location: 'Draft Dive',
                 isDraft: true,
               ),
-            ],
+            ]),
           ),
         ],
         child: const DeepLoggerApp(),
@@ -87,7 +91,9 @@ void main() {
   testWidgets('tapping add navigates to form', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [diveListProvider.overrideWith((ref) async => [])],
+        overrides: [
+          diveListNotifierProvider.overrideWith(() => _StubListNotifier([])),
+        ],
         child: const DeepLoggerApp(),
       ),
     );
@@ -99,4 +105,29 @@ void main() {
     expect(find.text('New Dive'), findsOneWidget);
     expect(find.text('Basic'), findsOneWidget);
   });
+}
+
+/// Stub notifier returning a fixed list as the initial state (no pagination,
+/// no DB) — for widget tests.
+class _StubListNotifier extends DiveListNotifier {
+  _StubListNotifier(this._logs);
+
+  final List<DiveLog> _logs;
+
+  @override
+  Future<DiveListState> build() async {
+    return DiveListState(logs: _logs, hasMore: false);
+  }
+
+  @override
+  Future<void> loadMore() async {}
+
+  @override
+  Future<void> setSearch(String? query) async {}
+
+  @override
+  Future<void> setSort(DiveLogSortField field, bool desc) async {}
+
+  @override
+  Future<void> refresh() async {}
 }

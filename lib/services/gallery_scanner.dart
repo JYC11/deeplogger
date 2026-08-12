@@ -2,6 +2,7 @@ import 'package:exif/exif.dart';
 import 'package:flutter/foundation.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+import '../models/scanned_photo.dart';
 import 'image_store.dart';
 
 /// Scans the device gallery for photos and extracts timestamps for dive grouping.
@@ -45,16 +46,22 @@ class GalleryScanner {
     return state.isAuth;
   }
 
-  /// Scans the gallery for image timestamps.
+  /// Scans the gallery for photos and their timestamps (D-PHOTO).
   ///
-  /// Returns a list of timestamps sorted ascending. Uses native
-  /// [AssetEntity.createDateTime] first for speed (avoids per-asset EXIF
-  /// reads); falls back to EXIF DateTimeOriginal → DateTimeDigitized when
+  /// Returns a list of [ScannedPhoto] values sorted ascending by capture
+  /// time. Each value carries a deferred [ScannedPhoto.resolveFile] closure
+  /// wrapping [AssetEntity.originFile] (the [AssetEntity] itself is never
+  /// held — it can't be mocked or cross isolates).
+  ///
+  /// Uses native [AssetEntity.createDateTime] first for speed (avoids per-asset
+  /// EXIF reads); falls back to EXIF DateTimeOriginal → DateTimeDigitized when
   /// the native timestamp is missing or clearly invalid.
   ///
   /// Perf: batches asset list queries; avoids per-asset full EXIF reads
   /// unless necessary (PRD NFR-2: 1,000 photos < 3 s).
-  Future<List<DateTime>> scanGalleryTimestamps({int maxAssets = 5000}) async {
+  Future<List<ScannedPhoto>> scanGalleryTimestamps({
+    int maxAssets = 5000,
+  }) async {
     if (!await hasPermission()) {
       final granted = await requestPermission();
       if (!granted) return [];
@@ -70,17 +77,19 @@ class GalleryScanner {
     final allPath = assetPaths.first;
     final assets = await allPath.getAssetListRange(start: 0, end: maxAssets);
 
-    final timestamps = <DateTime>[];
+    final photos = <ScannedPhoto>[];
 
     for (final asset in assets) {
       final ts = await _extractTimestamp(asset);
       if (ts != null) {
-        timestamps.add(ts);
+        photos.add(
+          ScannedPhoto(takenAt: ts, resolveFile: () => asset.originFile),
+        );
       }
     }
 
-    timestamps.sort();
-    return timestamps;
+    photos.sort((a, b) => a.takenAt.compareTo(b.takenAt));
+    return photos;
   }
 
   /// Extracts the best-available timestamp from an asset.
