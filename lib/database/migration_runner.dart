@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -34,16 +33,20 @@ class MigrationRunner {
   static const String migrationsDir = 'assets/migrations';
   static const String metaTable = 'schema_version';
 
-  static Future<List<String>> _defaultDiscoverer() async {
-    final manifestJson = await rootBundle.loadString('AssetManifest.json');
-    final manifest = jsonDecode(manifestJson) as Map<String, dynamic>;
-    final paths =
-        manifest.keys
-            .where((k) => k.startsWith('$migrationsDir/') && k.endsWith('.sql'))
-            .toList()
-          ..sort();
-    return paths;
-  }
+  /// The ordered list of migration SQL asset paths, newest last.
+  ///
+  /// This is the single source of truth for which migration files exist.
+  /// When adding a migration, drop the `.sql` file into `assets/migrations/`,
+  /// add its path here, and bump `DatabaseHelper._version`.
+  ///
+  /// We maintain an explicit list rather than discovering via
+  /// `AssetManifest.json` because modern Flutter (3.16+) generates
+  /// `AssetManifest.bin` (binary protobuf) instead of the JSON text file.
+  static const List<String> migrationAssets = [
+    'assets/migrations/001__init.sql',
+  ];
+
+  static Future<List<String>> _defaultDiscoverer() async => migrationAssets;
 
   static Future<String> _defaultLoader(String path) =>
       rootBundle.loadString(path);

@@ -71,6 +71,9 @@ class DiveDetailScreen extends ConsumerWidget {
                             ),
                           );
                           ref.invalidate(diveDetailProvider(diveId));
+                          ref.invalidate(diveGearEntriesProvider(diveId));
+                          ref.invalidate(divePhotosProvider(diveId));
+                          ref.invalidate(sightingsProvider(diveId));
                         },
                       ),
                     ],

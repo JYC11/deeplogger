@@ -28,6 +28,37 @@ void main() {
     databaseFactory = databaseFactoryFfi;
   });
 
+  group('migrationAssets constant', () {
+    test('lists every .sql file in assets/migrations/', () async {
+      final dir = Directory('assets/migrations');
+      final onDisk = await dir.list().toList();
+      final sqlFiles = onDisk
+          .whereType<File>()
+          .map((f) => f.path)
+          .where((p) => p.endsWith('.sql'))
+          .toList()
+        ..sort();
+      // Normalize disk paths to forward-slash asset paths.
+      final normalized = sqlFiles.map((p) => p.replaceAll('\\', '/')).toList();
+      expect(MigrationRunner.migrationAssets, containsAll(normalized));
+      expect(
+        MigrationRunner.migrationAssets.length,
+        normalized.length,
+        reason: 'migrationAssets has stale or missing entries — '
+            'update MigrationRunner.migrationAssets to match assets/migrations/',
+      );
+    });
+
+    test('entries are sorted by version', () {
+      final versions = MigrationRunner.migrationAssets
+          .map(MigrationRunner.parseVersion)
+          .toList();
+      expect(versions, isNot(contains(null)));
+      final sorted = List.of(versions)..sort();
+      expect(versions, orderedEquals(sorted));
+    });
+  });
+
   group('parseVersion', () {
     test('parses asset-style path', () {
       expect(

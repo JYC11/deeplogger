@@ -84,8 +84,22 @@ class CertificationFormNotifier extends AsyncNotifier<CertificationFormState> {
     );
   }
 
-  void setOrg(String v) => _update(s: state.value!.copyWith(org: v));
-  void setLevel(String v) => _update(s: state.value!.copyWith(level: v));
+  void _clearError(String key) {
+    if (state.value!.validationErrors.containsKey(key)) {
+      final errors = Map<String, String>.from(state.value!.validationErrors)
+        ..remove(key);
+      _update(s: state.value!.copyWith(validationErrors: errors));
+    }
+  }
+
+  void setOrg(String v) {
+    _update(s: state.value!.copyWith(org: v));
+    _clearError('org');
+  }
+  void setLevel(String v) {
+    _update(s: state.value!.copyWith(level: v));
+    _clearError('level');
+  }
   void setCertId(String v) => _update(s: state.value!.copyWith(certId: v));
   void setIssueDate(DateTime? v) =>
       _update(s: state.value!.copyWith(issueDate: v));

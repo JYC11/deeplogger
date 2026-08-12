@@ -207,9 +207,22 @@ class DiveFormNotifier extends AsyncNotifier<DiveFormState> {
 
   // --- Typed field setters ---
 
-  void setStartTime(DateTime? v) =>
-      _update(s: state.value!.copyWith(startTime: v));
-  void setLocation(String v) => _update(s: state.value!.copyWith(location: v));
+  void _clearError(String key) {
+    if (state.value!.validationErrors.containsKey(key)) {
+      final errors = Map<String, String>.from(state.value!.validationErrors)
+        ..remove(key);
+      _update(s: state.value!.copyWith(validationErrors: errors));
+    }
+  }
+
+  void setStartTime(DateTime? v) {
+    _update(s: state.value!.copyWith(startTime: v));
+    _clearError('startTime');
+  }
+  void setLocation(String v) {
+    _update(s: state.value!.copyWith(location: v));
+    _clearError('location');
+  }
   void setAltitude(String v) => _update(s: state.value!.copyWith(altitude: v));
   void setMaxDepth(double? v) =>
       _update(s: state.value!.copyWith(maxDepthM: v));

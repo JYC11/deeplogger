@@ -73,7 +73,18 @@ class GearFormNotifier extends AsyncNotifier<GearFormState> {
     );
   }
 
-  void setName(String v) => _update(s: state.value!.copyWith(name: v));
+  void _clearError(String key) {
+    if (state.value!.validationErrors.containsKey(key)) {
+      final errors = Map<String, String>.from(state.value!.validationErrors)
+        ..remove(key);
+      _update(s: state.value!.copyWith(validationErrors: errors));
+    }
+  }
+
+  void setName(String v) {
+    _update(s: state.value!.copyWith(name: v));
+    _clearError('name');
+  }
   void setTypeNotes(String v) =>
       _update(s: state.value!.copyWith(typeNotes: v));
   void setCategory(String? v) => _update(s: state.value!.copyWith(category: v));
@@ -101,11 +112,9 @@ class GearFormNotifier extends AsyncNotifier<GearFormState> {
         category: s.category,
       );
       if (item.id != null) {
-        // Update via raw map (no dedicated update method exists yet).
         final db = _db;
         final map = item.toMap();
         map.remove('id');
-        map['updated_at'] = null;
         await (await db.database).update(
           'gear_items',
           map,

@@ -1,48 +1,38 @@
 # DeepLogger Session State
 
 **Last updated**: 2026-08-12
-**Phase**: Plan 02 (Feedback Remediation) — IMPLEMENTATION COMPLETE
-**Next**: QA / verification session — run app on simulators, verify features, check deferred items
+**Phase**: QA session COMPLETE — 5 bugs found and fixed
 
-## What's Done
-- [x] Plan 02 all 33 tasks (A1-I4) — closed in filament under plan `97f93qgz`
-- [x] Phase A: MigrationRunner + complete schema; sentinel copyWith models; gear categories constant
-- [x] Phase B: paginated queries; `getDiveDetail` + `GearRef` sealed type
-- [x] Phase C: autoDispose providers; 4 form notifiers; 3 list notifiers
-- [x] Phase D: all forms (tank volume+SAC, unit dropdowns+UnitConverter, validation, defaults, ad-hoc gear, gear/cert/sighting screens)
-- [x] Phase E: D-GROUP span-cap grouping; ScannedPhoto seam + DraftCompleter; compression+thumbnails; iOS perm; photo tests
-- [x] Phase F: detail Photos section; list pagination/search/sort UI; icon verify
-- [x] Phase G: parallelized EXIF; temp cleanup; error audit; security/perf doc
-- [x] Phase H: flutter_launcher_icons + teal placeholder
-- [x] Phase I: lint rules; provider tests; widget tests; AGENTS.md updated to final state
-- [x] 4 commits pushed to `main` (latest `e839b48`)
+## QA Session Results
+
+### Bugs Found & Fixed
+1. **AssetManifest.json crash (CRITICAL)** — App crashed on launch. `MigrationRunner._defaultDiscoverer` loaded `AssetManifest.json` via `rootBundle.loadString`, but Flutter 3.16+ generates `AssetManifest.bin` (binary) instead. Tests masked this because they inject a custom disk-based discoverer. Fix: replaced with explicit `MigrationRunner.migrationAssets` constant list. Added test verifying list matches disk files. (lesson `5urqxrkk`)
+2. **Stale validation error in dive form (MINOR)** — "Start time is required" persisted after user selected a time. `DiveFormNotifier` setters didn't clear `validationErrors` for the updated field. Fix: added `_clearError(key)` helper, called from `setStartTime` and `setLocation`. (lesson `57ttwjr2`)
+3. **Gear edit crashes: no `updated_at` column (CRITICAL)** — `GearFormNotifier.save()` set `map['updated_at'] = null` before updating `gear_items`, but the table has no `updated_at` column. Fix: removed the line. (lesson `dirml1ly`)
+4. **Stale gear/photos/sightings after dive edit (MAJOR)** — `DiveDetailScreen` only invalidated `diveDetailProvider` after edit, not `diveGearEntriesProvider`/`divePhotosProvider`/`sightingsProvider`. Master gear items added during edit didn't appear in detail until full restart. Fix: added `ref.invalidate()` for all four providers. (lesson `wjbhpeb5`)
+5. **Stale validation error in gear + cert forms (MINOR)** — Same pattern as bug #2. `GearFormNotifier.setName` and `CertificationFormNotifier.setOrg`/`setLevel` didn't clear `validationErrors`. Fix: added `_clearError(key)` helper to both providers.
+
+### QA Verified (all pass)
+- [x] App launches on iOS sim (iPhone 17 Pro, iOS 26.5) with teal placeholder icon
+- [x] Add dive: defaults (altitude=Sea Level, gas=Air) present, validation works, save navigates to list
+- [x] Detail view: SAC computed correctly (11.4 L/min for 200→80 bar, 45min, 18m avg, 12L tank), expanded details (bar/min 0.95, psi/min 13.8, cu ft/min 0.40), Share card preview + iOS share sheet, temp file cleanup in `finally` block
+- [x] Edit dive: all fields preloaded, ad-hoc gear preserved across edit + round-trip save, master gear item linked via FilterChip, both gear types (master + ad-hoc) show in detail after edit
+- [x] Unit dropdowns: Max Depth m→ft (30.0→98.4) → m (30.0) round-trip verified, label + unit button update correctly
+- [x] Gallery scan: found 5 drafts from 6 photos, permission dialog correct, Complete copies photo + inserts draft DiveLog + opens form with EXIF start time, Photos (1) visible in detail, draft banner shown
+- [x] Gear: add (name validation), edit (preload all fields + category dropdown with kDefaultGearCategories), category filter, delete, link to dive via FilterChip
+- [x] Certifications: add (org+level validation, ID, issue date picker), edit (all fields preloaded), delete, grouped by org in ExpansionTile
+- [x] Deferred/out-of-scope items: no regression
 
 ## Current State
-- **Tests**: 149 passing (was 62), `flutter analyze` clean
-- **Git**: `main` synced with `origin/main`, working tree clean
-- **New deps**: `shared_preferences`, `image_picker`, `flutter_launcher_icons` (dev)
-- **Plan**: `.plan/02-feedback-remediation.md` (REVIEWED round 1, fully implemented)
-- **Filament**: all 33 plan tasks closed; 12 lessons captured (run `fl lesson list`)
+- **Tests**: 151 passing, `flutter analyze` clean
+- **Git**: uncommitted changes in 5 files (migration_runner, dive_form_provider, gear_form_provider, certification_form_provider, dive_detail_screen) + test + AGENTS.md + MEMORY.md
+- **Filament**: 16 lessons captured (12 + 4 from QA)
+- **Not committed**: changes need review/commit
 
-## What's Next (QA session)
-1. **Run the app** on iOS sim + Android emulator (mobile-mcp / `fvm flutter run`) — app not yet run since the refactor; verify it launches with the new icon.
-2. **Verify core flows end-to-end**: add dive (new defaults: altitude=Sea Level, gas=Air) → edit (gear preserved) → detail (Photos section, SAC, ad-hoc gear italic) → share (temp file cleanup).
-3. **Verify unit dropdowns**: switch a field (e.g. depth m↔ft) — value re-renders; save round-trips to metric; edit reloads in selected unit.
-4. **Verify gallery scan**: scan → drafts with photo counts → Complete copies photos + opens form → partial-failure SnackBar if a source is unreadable.
-5. **Check deferred/out-of-scope** items (see below) — confirm none regressed.
-
-## QA notes — intentional decisions to flag (not bugs)
-- **iOS permission = `readWrite`** (not readOnly): PhotoKit has NO read-only level (`addOnly` is write-only). App calls no write APIs. See lesson `4wagigxa`.
-- **Back-compat wrappers kept**: `getAllDiveLogs`/`getAllCertifications`/`getAllGearItems` still exist (delegate to paginated methods) — used by old `diveListProvider`/etc. and widget-test overrides. NOT dead code; safe to remove only after migrating all call sites (widget tests use `diveListProvider` override too — those now override `diveListNotifierProvider`).
-- **`tankSize` field removed from new-dive form** but column + legacy fallback kept. SAC reads structured `tank_volume_value`/`tank_volume_unit` first, falls back to parsing `tank_size` for old rows.
-- **`Icons.scuba_diving`** verified present in Flutter 3.44.9 SDK (F3).
-- **Placeholder app icon** is a simple teal circle (1024×1024) — designer swaps `assets/icon_placeholder.png` + reruns `fvm dart run flutter_launcher_icons`.
-
-## Deferred / out of scope (do NOT implement in QA without asking)
-- DB encryption (SQLCipher) — noted in `docs/security-performance-analysis.md`; revisit if certs deemed sensitive.
-- Relative photo paths (was G3) — deferred in review round 1; revisit before public release.
-- Structure/shared-helper file moves (was F4) — deferred; cosmetic.
-- Camera capture, location, dive-computer integration, l10n beyond intl plumbing, Firebase App Distribution — out per AGENTS.md.
+## What's Next
+1. **Commit** all 5 bug fixes
+2. **Android emulator QA**: run on Android emulator if available (only iOS sim tested)
+3. **Continue feature development** per PRD roadmap
 
 ## Gotchas / Lessons (for QA debugging)
 - **Riverpod 3.x family notifiers**: extend `AsyncNotifier<State>`, arg via constructor, `build()` takes no args. No `FamilyAsyncNotifier` base. (lesson `z8uzw60n`)
@@ -54,3 +44,19 @@
 - **`DropdownButtonFormField.value` is deprecated** → use `initialValue:` (Flutter 3.33+).
 - **App name is DeepLogger** (NOT DiveLogger) — stakeholder-corrected; repo dir name differs from app name. (lesson `phvcaghu`)
 - **SAC formula is industry-standard RMV** — do not re-litigate or restore old formula. (lesson `9dbhk6s6`)
+- **AssetManifest.json → AssetManifest.bin**: Flutter 3.16+ generates binary manifest. Don't load `AssetManifest.json` via `rootBundle`. Use explicit asset lists instead. (lesson `5urqxrkk`)
+- **Form validation errors persist**: always clear the specific error key when a field is updated, not just on next save. Applies to ALL form providers (dive, gear, cert). (lesson `57ttwjr2`)
+- **Gear items table has no `updated_at` column**: don't include it in update maps. Only `dive_logs` has timestamp columns. (lesson `dirml1ly`)
+- **autoDispose providers stay cached while watched**: invalidate ALL affected providers after an edit, not just the main one. `diveDetailProvider` invalidation alone doesn't refresh `diveGearEntriesProvider`/`divePhotosProvider`/`sightingsProvider`. (lesson `wjbhpeb5`)
+
+## QA notes — intentional decisions to flag (not bugs)
+- **iOS permission = `readWrite`** (not readOnly): PhotoKit has NO read-only level (`addOnly` is write-only). App calls no write APIs. (lesson `4wagigxa`)
+- **Back-compat wrappers kept**: `getAllDiveLogs`/`getAllCertifications`/`getAllGearItems` delegate to paginated methods.
+- **`tankSize` field removed from new-dive form** but column + legacy fallback kept for SAC.
+- **Placeholder app icon** is a simple teal circle (1024×1024) — designer swaps `assets/icon_placeholder.png` + reruns `fvm dart run flutter_launcher_icons`.
+
+## Deferred / out of scope (do NOT implement without asking)
+- DB encryption (SQLCipher) — noted in `docs/security-performance-analysis.md`
+- Relative photo paths (was G3) — deferred in review round 1
+- Structure/shared-helper file moves (was F4) — deferred; cosmetic
+- Camera capture, location, dive-computer integration, l10n beyond intl plumbing, Firebase App Distribution — out per AGENTS.md
