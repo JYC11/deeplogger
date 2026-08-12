@@ -14,6 +14,8 @@ class DiveLog {
     this.gasType,
     this.gasOther,
     this.tankSize,
+    this.tankVolumeValue,
+    this.tankVolumeUnit,
     this.startPressureBar,
     this.endPressureBar,
     this.waterTempC,
@@ -38,6 +40,8 @@ class DiveLog {
   final String? gasType;
   final String? gasOther;
   final String? tankSize;
+  final double? tankVolumeValue;
+  final String? tankVolumeUnit;
   final double? startPressureBar;
   final double? endPressureBar;
   final double? waterTempC;
@@ -49,48 +53,77 @@ class DiveLog {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Sentinel for [copyWith] so callers can explicitly set a nullable field
+  /// to `null` (the default `field ?? this.field` pattern makes clearing
+  /// impossible). Pass `null` to clear; omit the argument to keep the value.
+  static const Object _unset = Object();
+
   DiveLog copyWith({
     int? id,
-    DateTime? startTime,
-    DateTime? endTime,
-    String? location,
-    String? altitude,
-    double? maxDepthM,
-    double? avgDepthM,
-    double? durationMin,
-    String? gasType,
-    String? gasOther,
-    String? tankSize,
-    double? startPressureBar,
-    double? endPressureBar,
-    double? waterTempC,
-    String? salinity,
-    double? visibilityM,
-    double? weightKg,
-    String? notes,
+    Object? startTime = _unset,
+    Object? endTime = _unset,
+    Object? location = _unset,
+    Object? altitude = _unset,
+    Object? maxDepthM = _unset,
+    Object? avgDepthM = _unset,
+    Object? durationMin = _unset,
+    Object? gasType = _unset,
+    Object? gasOther = _unset,
+    Object? tankSize = _unset,
+    Object? tankVolumeValue = _unset,
+    Object? tankVolumeUnit = _unset,
+    Object? startPressureBar = _unset,
+    Object? endPressureBar = _unset,
+    Object? waterTempC = _unset,
+    Object? salinity = _unset,
+    Object? visibilityM = _unset,
+    Object? weightKg = _unset,
+    Object? notes = _unset,
     bool? isDraft,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return DiveLog(
       id: id ?? this.id,
-      startTime: startTime ?? this.startTime,
-      endTime: endTime ?? this.endTime,
-      location: location ?? this.location,
-      altitude: altitude ?? this.altitude,
-      maxDepthM: maxDepthM ?? this.maxDepthM,
-      avgDepthM: avgDepthM ?? this.avgDepthM,
-      durationMin: durationMin ?? this.durationMin,
-      gasType: gasType ?? this.gasType,
-      gasOther: gasOther ?? this.gasOther,
-      tankSize: tankSize ?? this.tankSize,
-      startPressureBar: startPressureBar ?? this.startPressureBar,
-      endPressureBar: endPressureBar ?? this.endPressureBar,
-      waterTempC: waterTempC ?? this.waterTempC,
-      salinity: salinity ?? this.salinity,
-      visibilityM: visibilityM ?? this.visibilityM,
-      weightKg: weightKg ?? this.weightKg,
-      notes: notes ?? this.notes,
+      startTime: startTime == _unset ? this.startTime : startTime as DateTime?,
+      endTime: endTime == _unset ? this.endTime : endTime as DateTime?,
+      location: location == _unset ? this.location : location as String?,
+      altitude: altitude == _unset ? this.altitude : altitude as String?,
+      maxDepthM: maxDepthM == _unset
+          ? this.maxDepthM
+          : (maxDepthM as num?)?.toDouble(),
+      avgDepthM: avgDepthM == _unset
+          ? this.avgDepthM
+          : (avgDepthM as num?)?.toDouble(),
+      durationMin: durationMin == _unset
+          ? this.durationMin
+          : (durationMin as num?)?.toDouble(),
+      gasType: gasType == _unset ? this.gasType : gasType as String?,
+      gasOther: gasOther == _unset ? this.gasOther : gasOther as String?,
+      tankSize: tankSize == _unset ? this.tankSize : tankSize as String?,
+      tankVolumeValue: tankVolumeValue == _unset
+          ? this.tankVolumeValue
+          : (tankVolumeValue as num?)?.toDouble(),
+      tankVolumeUnit: tankVolumeUnit == _unset
+          ? this.tankVolumeUnit
+          : tankVolumeUnit as String?,
+      startPressureBar: startPressureBar == _unset
+          ? this.startPressureBar
+          : (startPressureBar as num?)?.toDouble(),
+      endPressureBar: endPressureBar == _unset
+          ? this.endPressureBar
+          : (endPressureBar as num?)?.toDouble(),
+      waterTempC: waterTempC == _unset
+          ? this.waterTempC
+          : (waterTempC as num?)?.toDouble(),
+      salinity: salinity == _unset ? this.salinity : salinity as String?,
+      visibilityM: visibilityM == _unset
+          ? this.visibilityM
+          : (visibilityM as num?)?.toDouble(),
+      weightKg: weightKg == _unset
+          ? this.weightKg
+          : (weightKg as num?)?.toDouble(),
+      notes: notes == _unset ? this.notes : notes as String?,
       isDraft: isDraft ?? this.isDraft,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -110,6 +143,8 @@ class DiveLog {
       'gas_type': gasType,
       'gas_other': gasOther,
       'tank_size': tankSize,
+      'tank_volume_value': tankVolumeValue,
+      'tank_volume_unit': tankVolumeUnit,
       'start_pressure_bar': startPressureBar,
       'end_pressure_bar': endPressureBar,
       'water_temp_c': waterTempC,
@@ -140,6 +175,8 @@ class DiveLog {
       gasType: map['gas_type'] as String?,
       gasOther: map['gas_other'] as String?,
       tankSize: map['tank_size'] as String?,
+      tankVolumeValue: (map['tank_volume_value'] as num?)?.toDouble(),
+      tankVolumeUnit: map['tank_volume_unit'] as String?,
       startPressureBar: (map['start_pressure_bar'] as num?)?.toDouble(),
       endPressureBar: (map['end_pressure_bar'] as num?)?.toDouble(),
       waterTempC: (map['water_temp_c'] as num?)?.toDouble(),

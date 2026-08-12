@@ -14,6 +14,12 @@ class GalleryScanner {
   static final GalleryScanner instance = GalleryScanner._internal();
 
   static const _permOption = PermissionRequestOption(
+    // iOS PhotoKit offers only `addOnly` (write-only) and `readWrite` (read+
+    // write); there is no read-only access level. We request `readWrite`
+    // because read access is required for gallery scanning, but we never
+    // call any write APIs (no saves/deletes) — so this is read-only in
+    // practice. (Plan E4 aimed for readOnly, which doesn't exist in
+    // photo_manager / PHAccessLevel.)
     iosAccessLevel: IosAccessLevel.readWrite,
     androidPermission: AndroidPermission(
       type: RequestType.image,

@@ -86,6 +86,90 @@ void main() {
       });
     });
 
+    group('structured tank volume (D1)', () {
+      test('structured L value used directly', () {
+        final r = computeSac(
+          startBar: 200,
+          endBar: 50,
+          durationMin: 40,
+          avgDepthM: 15,
+          tankVolumeValue: 12.0,
+          tankVolumeUnit: 'L',
+        );
+        expect(r, isNotNull);
+        expect(r!.tankVolumeL, closeTo(12.0, 0.001));
+        expect(r.litersPerMin, closeTo(1.5 * 12.0, 0.001));
+      });
+
+      test('structured cu_ft converts to liters via 207 bar assumption', () {
+        final r = computeSac(
+          startBar: 200,
+          endBar: 50,
+          durationMin: 40,
+          avgDepthM: 15,
+          tankVolumeValue: 80.0,
+          tankVolumeUnit: 'cu_ft',
+        );
+        expect(r, isNotNull);
+        expect(r!.tankVolumeL, closeTo(80 * 28.3168 / 207, 0.01));
+        expect(r.litersPerMin, closeTo(1.5 * (80 * 28.3168 / 207), 0.01));
+      });
+
+      test('structured value wins over legacy tankSize text', () {
+        // Legacy text says 12L but structured says 10L — structured wins.
+        final r = computeSac(
+          startBar: 200,
+          endBar: 50,
+          durationMin: 40,
+          avgDepthM: 15,
+          tankSize: '12L',
+          tankVolumeValue: 10.0,
+          tankVolumeUnit: 'L',
+        );
+        expect(r, isNotNull);
+        expect(r!.tankVolumeL, closeTo(10.0, 0.001));
+      });
+
+      test('falls back to legacy tankSize when structured is null', () {
+        final r = computeSac(
+          startBar: 200,
+          endBar: 50,
+          durationMin: 40,
+          avgDepthM: 15,
+          tankSize: '12L',
+          // structured null
+        );
+        expect(r, isNotNull);
+        expect(r!.tankVolumeL, closeTo(12.0, 0.001));
+      });
+
+      test('structured value <= 0 ignored, falls back to tankSize', () {
+        final r = computeSac(
+          startBar: 200,
+          endBar: 50,
+          durationMin: 40,
+          avgDepthM: 15,
+          tankSize: '12L',
+          tankVolumeValue: 0,
+          tankVolumeUnit: 'L',
+        );
+        expect(r, isNotNull);
+        expect(r!.tankVolumeL, closeTo(12.0, 0.001));
+      });
+
+      test('both structured and legacy missing -> bar/min only', () {
+        final r = computeSac(
+          startBar: 200,
+          endBar: 50,
+          durationMin: 40,
+          avgDepthM: 15,
+        );
+        expect(r, isNotNull);
+        expect(r!.tankVolumeL, isNull);
+        expect(r.litersPerMin, isNull);
+      });
+    });
+
     group('guard rails', () {
       test('duration <= 0 returns null', () {
         expect(

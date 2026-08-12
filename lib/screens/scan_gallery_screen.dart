@@ -157,9 +157,7 @@ class _ScanGalleryScreenState extends ConsumerState<ScanGalleryScreen> {
     if (mounted) {
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => DiveFormScreen(existingLog: draft.copyWith(id: id)),
-        ),
+        MaterialPageRoute(builder: (_) => DiveFormScreen(existingLogId: id)),
       );
       ref.invalidate(diveListProvider);
     }

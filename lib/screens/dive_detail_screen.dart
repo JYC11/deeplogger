@@ -6,8 +6,9 @@ import 'package:intl/intl.dart';
 
 import '../models/dive_log.dart';
 import '../models/dive_photo.dart';
-import '../models/sighting.dart';
+import '../models/gear_ref.dart';
 import '../providers/dive_providers.dart';
+import '../providers/sighting_form_provider.dart';
 import '../services/sac_calculator.dart';
 import '../services/share_card.dart';
 import 'dive_form_screen.dart';
@@ -57,7 +58,8 @@ class DiveDetailScreen extends ConsumerWidget {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => DiveFormScreen(existingLog: log),
+                              builder: (_) =>
+                                  DiveFormScreen(existingLogId: log.id),
                             ),
                           );
                           ref.invalidate(diveDetailProvider(diveId));
@@ -93,7 +95,7 @@ class DiveDetailView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sac = ref.watch(sacProvider(log));
-    final asyncGear = ref.watch(diveGearProvider(diveId));
+    final asyncGear = ref.watch(diveGearEntriesProvider(diveId));
     final theme = Theme.of(context);
 
     return ListView(
@@ -162,7 +164,7 @@ class DiveDetailView extends ConsumerWidget {
               ),
             ],
             asyncGear.when(
-              data: (gear) => gear.isEmpty
+              data: (gearRefs) => gearRefs.isEmpty
                   ? const SizedBox.shrink()
                   : Padding(
                       padding: const EdgeInsets.all(16),
@@ -170,7 +172,21 @@ class DiveDetailView extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Gear', style: theme.textTheme.titleSmall),
-                          ...gear.map((g) => Text('• ${g.name}')),
+                          ...gearRefs.map((g) {
+                            if (g is GearRefAdHoc) {
+                              return Text(
+                                '• ${g.text}',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              );
+                            }
+                            if (g is GearRefItem) {
+                              return Text('• ${g.item.name}');
+                            }
+                            return const SizedBox.shrink();
+                          }),
                         ],
                       ),
                     ),
@@ -309,7 +325,12 @@ class _SightingsSection extends ConsumerWidget {
             ? const SizedBox.shrink()
             : IconButton(
                 icon: const Icon(Icons.add),
-                onPressed: () => _showAddSightingDialog(context, ref, photos),
+                onPressed: () => _showSightingDialog(
+                  context,
+                  ref,
+                  photos,
+                  SightingFormKey(diveLogId: diveId),
+                ),
               ),
         orElse: () => const SizedBox.shrink(),
       ),
@@ -340,7 +361,7 @@ class _SightingsSection extends ConsumerWidget {
                 final photo = s.divePhotoId != null
                     ? photoMap[s.divePhotoId!]
                     : null;
-                return Chip(
+                return InputChip(
                   avatar: photo != null
                       ? CircleAvatar(
                           backgroundImage: FileImage(File(photo.localPath)),
@@ -351,6 +372,15 @@ class _SightingsSection extends ConsumerWidget {
                     await ref.read(databaseProvider).deleteSighting(s.id!);
                     ref.invalidate(sightingsProvider(diveId));
                   },
+                  onPressed: () => _showSightingDialog(
+                    context,
+                    ref,
+                    asyncPhotos.maybeWhen(
+                      data: (p) => p,
+                      orElse: () => <DivePhoto>[],
+                    ),
+                    SightingFormKey(existingId: s.id, diveLogId: diveId),
+                  ),
                 );
               }).toList(),
             );
@@ -365,71 +395,99 @@ class _SightingsSection extends ConsumerWidget {
     );
   }
 
-  void _showAddSightingDialog(
+  void _showSightingDialog(
     BuildContext context,
     WidgetRef ref,
     List<DivePhoto> photos,
+    SightingFormKey key,
   ) {
-    final nameCtrl = TextEditingController();
-    DivePhoto? selectedPhoto;
-
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Add Sighting'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameCtrl,
-                    decoration: const InputDecoration(labelText: 'Common Name'),
+      builder: (context) => _SightingDialog(photos: photos, key0: key),
+    );
+  }
+}
+
+class _SightingDialog extends ConsumerWidget {
+  const _SightingDialog({required this.photos, required this.key0});
+
+  final List<DivePhoto> photos;
+  final SightingFormKey key0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(sightingFormProvider(key0));
+    return AlertDialog(
+      title: Text(key0.existingId == null ? 'Add Sighting' : 'Edit Sighting'),
+      content: async.when(
+        loading: () => const SizedBox(
+          height: 60,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => Text('Error: $e'),
+        data: (state) {
+          final notifier = ref.read(sightingFormProvider(key0).notifier);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                initialValue: state.commonName,
+                decoration: InputDecoration(
+                  labelText: 'Common Name',
+                  errorText: state.validationErrors['commonName'],
+                ),
+                onChanged: notifier.setCommonName,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int?>(
+                initialValue: state.divePhotoId,
+                decoration: const InputDecoration(labelText: 'Photo'),
+                items: [
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('— no photo —'),
                   ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<DivePhoto>(
-                    initialValue: selectedPhoto,
-                    decoration: const InputDecoration(labelText: 'Photo'),
-                    items: photos
-                        .map(
-                          (p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(p.localPath.split('/').last),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => selectedPhoto = v),
+                  ...photos.map(
+                    (p) => DropdownMenuItem<int?>(
+                      value: p.id,
+                      child: Text(p.localPath.split('/').last),
+                    ),
                   ),
                 ],
+                onChanged: notifier.setPhotoId,
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+              if (state.saveError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Save failed: ${state.saveError}',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
-                FilledButton(
-                  onPressed: () async {
-                    if (nameCtrl.text.isEmpty) return;
-                    await ref
-                        .read(databaseProvider)
-                        .insertSighting(
-                          Sighting(
-                            diveLogId: diveId,
-                            divePhotoId: selectedPhoto?.id,
-                            commonName: nameCtrl.text,
-                          ),
-                        );
-                    ref.invalidate(sightingsProvider(diveId));
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
-            );
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            final notifier = ref.read(sightingFormProvider(key0).notifier);
+            final ok = await notifier.save();
+            if (ok) {
+              ref.invalidate(sightingsProvider(key0.diveLogId));
+              if (context.mounted) Navigator.pop(context);
+            }
           },
-        );
-      },
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }

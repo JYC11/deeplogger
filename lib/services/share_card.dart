@@ -313,11 +313,22 @@ class ShareCardService {
     final file = File(filePath);
     await file.writeAsBytes(byteData.buffer.asUint8List());
 
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(filePath)],
-        text: 'My dive at ${log.location ?? "unknown"} #DeepLogger',
-      ),
-    );
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(filePath)],
+          text: 'My dive at ${log.location ?? "unknown"} #DeepLogger',
+        ),
+      );
+    } finally {
+      // Clean up the temp PNG so it doesn't accumulate across shares (G2).
+      if (await file.exists()) {
+        try {
+          await file.delete();
+        } catch (_) {
+          // Best-effort cleanup; ignore deletion failures.
+        }
+      }
+    }
   }
 }

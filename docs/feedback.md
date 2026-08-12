@@ -14,5 +14,29 @@
 - in general, inputs needing specific units should have a drop down selectable units section
 - input guards/validation need to exist if they don't exist
 
+## 2026-08-12
+
 ### from user
-- None yet
+Ok notes on the fields
+Altitude - should be "Sea Level (0m)" by default
+Gas Type - should be "Air" by default
+For Gear
+Gear needs some default categories
+- BCD
+- Wetsuit
+- Fins
+- Dive Computer
+- Torch
+- Regulator
+	- First Stage
+	- Second Stage
+- Other
+
+Also in the main dive log entry - you should have an option to input gear that is not from your gear list (very common to use some of your own gear and rent some gear)
+
+Certification
+each cert should have the fields
+- Organization
+- Level
+- ID#
+- Image of certification (photo upload)

@@ -1,8 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../models/certification.dart';
+import '../providers/certification_form_provider.dart';
 import '../providers/dive_providers.dart';
+import '../services/image_store.dart';
 
 class CertificationsScreen extends ConsumerWidget {
   const CertificationsScreen({super.key});
@@ -14,7 +20,7 @@ class CertificationsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Certifications')),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddDialog(context, ref),
+        onPressed: () => _showCertDialog(context, ref, null),
         child: const Icon(Icons.add),
       ),
       body: asyncCerts.when(
@@ -50,22 +56,35 @@ class CertificationsScreen extends ConsumerWidget {
                 title: Text(org),
                 children: orgCerts.map((cert) {
                   return ListTile(
-                    leading: const Icon(Icons.card_membership),
-                    title: Text(cert.level),
-                    subtitle: cert.issueDate != null
-                        ? Text(
-                            'Issued ${cert.issueDate!.year}-${cert.issueDate!.month.toString().padLeft(2, '0')}',
+                    leading: cert.photoPath != null
+                        ? CircleAvatar(
+                            backgroundImage: FileImage(File(cert.photoPath!)),
                           )
-                        : null,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () async {
-                        await ref
-                            .read(databaseProvider)
-                            .deleteCertification(cert.id!);
-                        ref.invalidate(certificationListProvider);
-                      },
+                        : const CircleAvatar(
+                            child: Icon(Icons.card_membership),
+                          ),
+                    title: Text(cert.level),
+                    subtitle: _certSubtitle(cert),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () =>
+                              _showCertDialog(context, ref, cert.id),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () async {
+                            await ref
+                                .read(databaseProvider)
+                                .deleteCertification(cert.id!);
+                            ref.invalidate(certificationListProvider);
+                          },
+                        ),
+                      ],
                     ),
+                    onTap: () => _showCertDialog(context, ref, cert.id),
                   );
                 }).toList(),
               );
@@ -78,59 +97,163 @@ class CertificationsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAddDialog(BuildContext context, WidgetRef ref) {
-    final orgCtrl = TextEditingController();
-    final levelCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
+  Widget? _certSubtitle(Certification cert) {
+    final parts = <String>[];
+    if (cert.certId != null && cert.certId!.isNotEmpty) {
+      parts.add('#${cert.certId}');
+    }
+    if (cert.issueDate != null) {
+      parts.add('Issued ${DateFormat.yMMMd().format(cert.issueDate!)}');
+    }
+    if (parts.isEmpty) return null;
+    return Text(parts.join(' · '));
+  }
 
+  void _showCertDialog(BuildContext context, WidgetRef ref, int? existingId) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add Certification'),
-          content: Form(
-            key: formKey,
+      builder: (context) => _CertDialog(existingId: existingId),
+    );
+  }
+}
+
+class _CertDialog extends ConsumerWidget {
+  const _CertDialog({required this.existingId});
+
+  final int? existingId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(certificationFormProvider(existingId));
+    return AlertDialog(
+      title: Text(
+        existingId == null ? 'Add Certification' : 'Edit Certification',
+      ),
+      content: async.when(
+        loading: () => const SizedBox(
+          height: 60,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => Text('Error: $e'),
+        data: (state) {
+          final notifier = ref.read(
+            certificationFormProvider(existingId).notifier,
+          );
+          return SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
-                  controller: orgCtrl,
-                  decoration: const InputDecoration(
+                  initialValue: state.org,
+                  decoration: InputDecoration(
                     labelText: 'Organization (e.g. PADI, SSI)',
+                    errorText: state.validationErrors['org'],
                   ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Required' : null,
+                  onChanged: notifier.setOrg,
                 ),
                 TextFormField(
-                  controller: levelCtrl,
-                  decoration: const InputDecoration(labelText: 'Level'),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Required' : null,
+                  initialValue: state.level,
+                  decoration: InputDecoration(
+                    labelText: 'Level',
+                    errorText: state.validationErrors['level'],
+                  ),
+                  onChanged: notifier.setLevel,
                 ),
+                TextFormField(
+                  initialValue: state.certId,
+                  decoration: const InputDecoration(
+                    labelText: 'ID # (optional)',
+                  ),
+                  onChanged: notifier.setCertId,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    state.issueDate == null
+                        ? 'Issue date (optional)'
+                        : DateFormat.yMMMd().format(state.issueDate!),
+                  ),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final d = await showDatePicker(
+                      context: context,
+                      initialDate: state.issueDate ?? DateTime.now(),
+                      firstDate: DateTime(1970),
+                      lastDate: DateTime.now(),
+                    );
+                    if (d != null) notifier.setIssueDate(d);
+                  },
+                ),
+                if (state.photoPath != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Image.file(
+                      File(state.photoPath!),
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                Row(
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.photo),
+                      label: const Text('Photo'),
+                      onPressed: () => _pickCertPhoto(ref, notifier),
+                    ),
+                    if (state.photoPath != null)
+                      TextButton(
+                        onPressed: () => notifier.setPhotoPath(null),
+                        child: const Text('Remove'),
+                      ),
+                  ],
+                ),
+                if (state.saveError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Save failed: ${state.saveError}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                await ref
-                    .read(databaseProvider)
-                    .insertCertification(
-                      Certification(org: orgCtrl.text, level: levelCtrl.text),
-                    );
-                ref.invalidate(certificationListProvider);
-                if (context.mounted) Navigator.pop(context);
-              },
-              child: const Text('Add'),
-            ),
-          ],
-        );
-      },
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            final notifier = ref.read(
+              certificationFormProvider(existingId).notifier,
+            );
+            final ok = await notifier.save();
+            if (ok) {
+              ref.invalidate(certificationListProvider);
+              if (context.mounted) Navigator.pop(context);
+            }
+          },
+          child: const Text('Save'),
+        ),
+      ],
     );
+  }
+
+  Future<void> _pickCertPhoto(
+    WidgetRef ref,
+    CertificationFormNotifier notifier,
+  ) async {
+    final picker = ImagePicker();
+    final xfile = await picker.pickImage(source: ImageSource.gallery);
+    if (xfile == null) return;
+    final path = await ImageStore.instance.copyToAppDir(xfile.path);
+    notifier.setPhotoPath(path);
   }
 }

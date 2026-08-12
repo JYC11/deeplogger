@@ -26,21 +26,47 @@ void main() {
       expect(clusters[0].length, 3);
     });
 
-    test('75 min gap starts a new cluster', () {
+    test('75 min gap with span <= 90 stays in same cluster', () {
+      // D-GROUP: 60 < 75 <= 90, newSpan = 75 <= 90 → extend → 1 cluster.
       final ts = [
         DateTime(2026, 1, 1, 10, 0),
-        DateTime(2026, 1, 1, 11, 15), // 75 min gap
+        DateTime(2026, 1, 1, 11, 15), // 75 min gap, span 75 <= 90
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 1);
+      expect(clusters[0].length, 2);
+    });
+
+    test('75 min gap with span > 90 starts a new cluster', () {
+      // First cluster spans 40 min, then 75-min gap → newSpan 115 > 90 → break.
+      final ts = [
+        DateTime(2026, 1, 1, 10, 0),
+        DateTime(2026, 1, 1, 10, 40), // gap 40, span 40 (extend)
+        DateTime(2026, 1, 1, 11, 55), // gap 75, newSpan 115 > 90 → new cluster
       ];
       final clusters = groupPhotosByDive(ts);
       expect(clusters.length, 2);
-      expect(clusters[0].length, 1);
+      expect(clusters[0].length, 2);
+      expect(clusters[1].length, 1);
+    });
+
+    test('span-cap edge: 85-min span + 70-min gap breaks', () {
+      // Plan example: cluster spanning 85 min, then 70-min gap → newSpan 155.
+      final ts = [
+        DateTime(2026, 1, 1, 10, 0),
+        DateTime(2026, 1, 1, 11, 25), // gap 85 (<=90), span 85 <= 90 (extend)
+        DateTime(2026, 1, 1, 12, 35), // gap 70, newSpan 155 > 90 → new cluster
+      ];
+      final clusters = groupPhotosByDive(ts);
+      expect(clusters.length, 2);
+      expect(clusters[0].length, 2);
       expect(clusters[1].length, 1);
     });
 
     test('120 min gap starts a new cluster', () {
       final ts = [
         DateTime(2026, 1, 1, 10, 0),
-        DateTime(2026, 1, 1, 12, 0), // 120 min gap
+        DateTime(2026, 1, 1, 12, 0), // 120 min gap > 90
       ];
       final clusters = groupPhotosByDive(ts);
       expect(clusters.length, 2);

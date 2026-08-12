@@ -70,19 +70,31 @@ double? parseTankVolumeLiters(String tankSize) {
 /// Computes the SAC result for a dive.
 ///
 /// Returns null if [durationMin] ≤ 0 or [endBar] ≥ [startBar].
-/// Returns bar/min only (no L/min) if [tankSize] is unparseable.
+/// Returns bar/min only (no L/min) if the tank volume is unknown.
+///
+/// Tank volume resolution (D1): when [tankVolumeValue] + [tankVolumeUnit] are
+/// provided, the structured value wins. `cu ft` is converted to liters via the
+/// 207-bar service pressure assumption (`value × 28.3168 / 207`); `L` is used
+/// directly. Otherwise, falls back to parsing the legacy [tankSize] text for
+/// old rows.
 SacResult? computeSac({
   required double startBar,
   required double endBar,
   required double durationMin,
   required double avgDepthM,
-  required String tankSize,
+  String tankSize = '',
+  double? tankVolumeValue,
+  String? tankVolumeUnit,
 }) {
   if (durationMin <= 0 || endBar >= startBar) return null;
 
   final pRate = (startBar - endBar) / (durationMin * ((avgDepthM / 10) + 1));
 
-  final tankVolumeL = parseTankVolumeLiters(tankSize);
+  final tankVolumeL = _resolveTankVolumeLiters(
+    tankSize: tankSize,
+    tankVolumeValue: tankVolumeValue,
+    tankVolumeUnit: tankVolumeUnit,
+  );
   final litersPerMin = tankVolumeL != null ? pRate * tankVolumeL : null;
 
   return SacResult(
@@ -92,4 +104,21 @@ SacResult? computeSac({
     psiPerMin: pRate * 14.5038,
     cubicFtPerMin: litersPerMin != null ? litersPerMin * 0.0353147 : null,
   );
+}
+
+/// Resolves tank volume in liters. Structured value wins when present;
+/// otherwise falls back to parsing [tankSize].
+double? _resolveTankVolumeLiters({
+  required String tankSize,
+  double? tankVolumeValue,
+  String? tankVolumeUnit,
+}) {
+  if (tankVolumeValue != null && tankVolumeValue > 0) {
+    if (tankVolumeUnit == 'cu_ft') {
+      return tankVolumeValue * 28.3168 / 207;
+    }
+    // Default to liters for 'L' or any unrecognized unit.
+    return tankVolumeValue;
+  }
+  return parseTankVolumeLiters(tankSize);
 }

@@ -15,16 +15,20 @@ class Sighting {
   final int? divePhotoId;
   final String commonName;
 
+  static const Object _unset = Object();
+
   Sighting copyWith({
     int? id,
-    int? diveLogId,
-    int? divePhotoId,
+    Object? diveLogId = _unset,
+    Object? divePhotoId = _unset,
     String? commonName,
   }) {
     return Sighting(
       id: id ?? this.id,
-      diveLogId: diveLogId ?? this.diveLogId,
-      divePhotoId: divePhotoId ?? this.divePhotoId,
+      diveLogId: diveLogId == _unset ? this.diveLogId : diveLogId as int?,
+      divePhotoId: divePhotoId == _unset
+          ? this.divePhotoId
+          : divePhotoId as int?,
       commonName: commonName ?? this.commonName,
     );
   }

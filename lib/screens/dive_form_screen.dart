@@ -1,328 +1,272 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/dive_log.dart';
+import '../providers/dive_form_provider.dart';
 import '../providers/dive_providers.dart';
+import '../services/unit_converter.dart';
 
-class DiveFormScreen extends ConsumerStatefulWidget {
-  const DiveFormScreen({super.key, this.existingLog});
+class DiveFormScreen extends ConsumerWidget {
+  const DiveFormScreen({super.key, this.existingLogId});
 
-  final DiveLog? existingLog;
-
-  @override
-  ConsumerState<DiveFormScreen> createState() => _DiveFormScreenState();
-}
-
-class _DiveFormScreenState extends ConsumerState<DiveFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-
-  late final TextEditingController _locationCtrl;
-  late final TextEditingController _altitudeCtrl;
-  late final TextEditingController _maxDepthCtrl;
-  late final TextEditingController _avgDepthCtrl;
-  late final TextEditingController _durationCtrl;
-  late final TextEditingController _tankSizeCtrl;
-  late final TextEditingController _startPressureCtrl;
-  late final TextEditingController _endPressureCtrl;
-  late final TextEditingController _waterTempCtrl;
-  late final TextEditingController _visibilityCtrl;
-  late final TextEditingController _weightCtrl;
-  late final TextEditingController _notesCtrl;
-  late final TextEditingController _gasOtherCtrl;
-
-  String? _gasType;
-  String? _salinity;
-  DateTime? _startTime;
-  final Set<int> _selectedGearIds = {};
-  bool _saving = false;
-
-  static const _gasTypes = ['Air', 'Nitrox', 'Other'];
-  static const _salinities = ['Fresh Water', 'Ocean', 'Other'];
+  /// Existing log id, or null for a new dive.
+  final int? existingLogId;
 
   @override
-  void initState() {
-    super.initState();
-    final log = widget.existingLog;
-    _locationCtrl = TextEditingController(text: log?.location ?? '');
-    _altitudeCtrl = TextEditingController(text: log?.altitude ?? '');
-    _maxDepthCtrl = TextEditingController(
-      text: log?.maxDepthM?.toStringAsFixed(1) ?? '',
-    );
-    _avgDepthCtrl = TextEditingController(
-      text: log?.avgDepthM?.toStringAsFixed(1) ?? '',
-    );
-    _durationCtrl = TextEditingController(
-      text: log?.durationMin?.toStringAsFixed(0) ?? '',
-    );
-    _tankSizeCtrl = TextEditingController(text: log?.tankSize ?? '');
-    _startPressureCtrl = TextEditingController(
-      text: log?.startPressureBar?.toStringAsFixed(0) ?? '',
-    );
-    _endPressureCtrl = TextEditingController(
-      text: log?.endPressureBar?.toStringAsFixed(0) ?? '',
-    );
-    _waterTempCtrl = TextEditingController(
-      text: log?.waterTempC?.toStringAsFixed(0) ?? '',
-    );
-    _visibilityCtrl = TextEditingController(
-      text: log?.visibilityM?.toStringAsFixed(0) ?? '',
-    );
-    _weightCtrl = TextEditingController(
-      text: log?.weightKg?.toStringAsFixed(1) ?? '',
-    );
-    _notesCtrl = TextEditingController(text: log?.notes ?? '');
-    _gasOtherCtrl = TextEditingController(text: log?.gasOther ?? '');
-    _gasType = log?.gasType;
-    _salinity = log?.salinity;
-    _startTime = log?.startTime;
-  }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncForm = ref.watch(diveFormProvider(existingLogId));
 
-  @override
-  void dispose() {
-    for (final c in [
-      _locationCtrl,
-      _altitudeCtrl,
-      _maxDepthCtrl,
-      _avgDepthCtrl,
-      _durationCtrl,
-      _tankSizeCtrl,
-      _startPressureCtrl,
-      _endPressureCtrl,
-      _waterTempCtrl,
-      _visibilityCtrl,
-      _weightCtrl,
-      _notesCtrl,
-      _gasOtherCtrl,
-    ]) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.existingLog == null ? 'New Dive' : 'Edit Dive'),
+        title: Text(existingLogId == null ? 'New Dive' : 'Edit Dive'),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Basic / Temporal
-            _SectionHeader('Basic'),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                _startTime == null
-                    ? 'Select start time'
-                    : '${_startTime!.toLocal()}'.split('.').first,
-              ),
-              trailing: const Icon(Icons.calendar_today),
-              onTap: _pickDateTime,
-            ),
-            TextFormField(
-              controller: _locationCtrl,
-              decoration: const InputDecoration(labelText: 'Location'),
-              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-            ),
-            TextFormField(
-              controller: _altitudeCtrl,
-              decoration: const InputDecoration(labelText: 'Altitude'),
-            ),
+      body: asyncForm.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error loading: $e')),
+        data: (state) => _DiveFormBody(existingLogId: existingLogId),
+      ),
+    );
+  }
+}
 
-            const SizedBox(height: 16),
-            _SectionHeader('Depth & Duration'),
-            TextFormField(
-              controller: _maxDepthCtrl,
-              decoration: const InputDecoration(labelText: 'Max Depth (m)'),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-            ),
-            TextFormField(
-              controller: _avgDepthCtrl,
-              decoration: const InputDecoration(labelText: 'Average Depth (m)'),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-            ),
-            TextFormField(
-              controller: _durationCtrl,
-              decoration: const InputDecoration(labelText: 'Duration (min)'),
-              keyboardType: TextInputType.number,
-            ),
+class _DiveFormBody extends ConsumerWidget {
+  const _DiveFormBody({required this.existingLogId});
 
-            const SizedBox(height: 16),
-            _SectionHeader('Tank & Gas'),
-            DropdownButtonFormField<String>(
-              initialValue: _gasType,
-              decoration: const InputDecoration(labelText: 'Gas Type'),
-              items: _gasTypes
-                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
-                  .toList(),
-              onChanged: (v) => setState(() => _gasType = v),
-            ),
-            if (_gasType == 'Other')
-              TextFormField(
-                controller: _gasOtherCtrl,
-                decoration: const InputDecoration(labelText: 'Gas (specify)'),
-                validator: (v) =>
-                    (_gasType == 'Other' && (v == null || v.isEmpty))
-                    ? 'Required when Other'
-                    : null,
-              ),
-            TextFormField(
-              controller: _tankSizeCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Tank Size (e.g. 12L, 80 cu ft)',
-              ),
-            ),
-            TextFormField(
-              controller: _startPressureCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Start Pressure (bar)',
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            TextFormField(
-              controller: _endPressureCtrl,
-              decoration: const InputDecoration(
-                labelText: 'End Pressure (bar)',
-              ),
-              keyboardType: TextInputType.number,
-            ),
+  final int? existingLogId;
 
-            const SizedBox(height: 16),
-            _SectionHeader('Environmental'),
-            TextFormField(
-              controller: _waterTempCtrl,
-              decoration: const InputDecoration(labelText: 'Water Temp (°C)'),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-            ),
-            DropdownButtonFormField<String>(
-              initialValue: _salinity,
-              decoration: const InputDecoration(labelText: 'Salinity'),
-              items: _salinities
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: (v) => setState(() => _salinity = v),
-            ),
-            TextFormField(
-              controller: _visibilityCtrl,
-              decoration: const InputDecoration(labelText: 'Visibility (m)'),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-            ),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final form = ref.watch(diveFormProvider(existingLogId)).requireValue;
+    final notifier = ref.read(diveFormProvider(existingLogId).notifier);
+    final errors = form.validationErrors;
 
-            const SizedBox(height: 16),
-            _SectionHeader('Gear'),
-            _GearSelector(
-              selectedIds: _selectedGearIds,
-              onToggle: (id) => setState(() {
-                if (_selectedGearIds.contains(id)) {
-                  _selectedGearIds.remove(id);
-                } else {
-                  _selectedGearIds.add(id);
-                }
-              }),
+    return Form(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Basic / Temporal
+          _SectionHeader('Basic'),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              form.startTime == null
+                  ? 'Select start time'
+                  : '${form.startTime!.toLocal()}'.split('.').first,
             ),
+            trailing: const Icon(Icons.calendar_today),
+            onTap: () => _pickDateTime(context, form.startTime, notifier),
+          ),
+          if (errors['startTime'] != null) _ErrorText(errors['startTime']!),
+          TextFormField(
+            initialValue: form.location,
+            decoration: InputDecoration(
+              labelText: 'Location',
+              errorText: errors['location'],
+            ),
+            onChanged: notifier.setLocation,
+          ),
+          TextFormField(
+            initialValue: form.altitude,
+            decoration: const InputDecoration(labelText: 'Altitude'),
+            onChanged: notifier.setAltitude,
+          ),
 
-            const SizedBox(height: 16),
-            _SectionHeader('Personal'),
+          const SizedBox(height: 16),
+          _SectionHeader('Depth & Duration'),
+          _UnitField(
+            field: DiveField.maxDepth,
+            column: 'max_depth_m',
+            label: 'Max Depth',
+            metricValue: form.maxDepthM,
+            unitPrefs: form.unitPreferences,
+            errorText: errors['maxDepthM'],
+            onMetricChanged: notifier.setMaxDepth,
+            onUnitChanged: notifier.setUnitPreference,
+          ),
+          _UnitField(
+            field: DiveField.avgDepth,
+            column: 'avg_depth_m',
+            label: 'Average Depth',
+            metricValue: form.avgDepthM,
+            unitPrefs: form.unitPreferences,
+            errorText: errors['avgDepthM'],
+            onMetricChanged: notifier.setAvgDepth,
+            onUnitChanged: notifier.setUnitPreference,
+          ),
+          TextFormField(
+            initialValue: form.durationMin?.toStringAsFixed(0),
+            decoration: InputDecoration(
+              labelText: 'Duration (min)',
+              errorText: errors['durationMin'],
+            ),
+            keyboardType: TextInputType.number,
+            onChanged: (v) => notifier.setDuration(double.tryParse(v)),
+          ),
+
+          const SizedBox(height: 16),
+          _SectionHeader('Tank & Gas'),
+          DropdownButtonFormField<String>(
+            initialValue: form.gasType,
+            decoration: const InputDecoration(labelText: 'Gas Type'),
+            items: const [
+              'Air',
+              'Nitrox',
+              'Other',
+            ].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+            onChanged: notifier.setGasType,
+          ),
+          if (form.gasType == 'Other')
             TextFormField(
-              controller: _weightCtrl,
-              decoration: const InputDecoration(labelText: 'Weight (kg)'),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+              initialValue: form.gasOther,
+              decoration: InputDecoration(
+                labelText: 'Gas (specify)',
+                errorText: errors['gasOther'],
               ),
+              onChanged: notifier.setGasOther,
             ),
-            TextFormField(
-              controller: _notesCtrl,
-              decoration: const InputDecoration(labelText: 'Notes'),
-              maxLines: 3,
+          // Tank volume (structured, per D-TANK). New dives use the
+          // structured value + unit; legacy rows still parse tankSize on read.
+          TextFormField(
+            initialValue: form.tankVolumeValue?.toStringAsFixed(1),
+            decoration: InputDecoration(
+              labelText: 'Tank Volume',
+              errorText: errors['tankVolumeValue'],
             ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (v) => notifier.setTankVolumeValue(double.tryParse(v)),
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: form.tankVolumeUnit,
+            decoration: const InputDecoration(labelText: 'Tank Volume Unit'),
+            items: const [
+              'L',
+              'cu ft',
+            ].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
+            onChanged: (v) => notifier.setTankVolumeUnit(v ?? 'L'),
+          ),
+          _UnitField(
+            field: DiveField.startPressure,
+            column: 'start_pressure_bar',
+            label: 'Start Pressure',
+            metricValue: form.startPressureBar,
+            unitPrefs: form.unitPreferences,
+            errorText: errors['startPressureBar'],
+            onMetricChanged: notifier.setStartPressure,
+            onUnitChanged: notifier.setUnitPreference,
+          ),
+          _UnitField(
+            field: DiveField.endPressure,
+            column: 'end_pressure_bar',
+            label: 'End Pressure',
+            metricValue: form.endPressureBar,
+            unitPrefs: form.unitPreferences,
+            errorText: errors['endPressureBar'],
+            onMetricChanged: notifier.setEndPressure,
+            onUnitChanged: notifier.setUnitPreference,
+          ),
 
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(_saving ? 'Saving...' : 'Save Dive'),
-            ),
+          const SizedBox(height: 16),
+          _SectionHeader('Environmental'),
+          _UnitField(
+            field: DiveField.waterTemp,
+            column: 'water_temp_c',
+            label: 'Water Temp',
+            metricValue: form.waterTempC,
+            unitPrefs: form.unitPreferences,
+            errorText: errors['waterTempC'],
+            onMetricChanged: notifier.setWaterTemp,
+            onUnitChanged: notifier.setUnitPreference,
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: form.salinity,
+            decoration: const InputDecoration(labelText: 'Salinity'),
+            items: const [
+              'Fresh Water',
+              'Ocean',
+              'Other',
+            ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+            onChanged: notifier.setSalinity,
+          ),
+          _UnitField(
+            field: DiveField.visibility,
+            column: 'visibility_m',
+            label: 'Visibility',
+            metricValue: form.visibilityM,
+            unitPrefs: form.unitPreferences,
+            errorText: errors['visibilityM'],
+            onMetricChanged: notifier.setVisibility,
+            onUnitChanged: notifier.setUnitPreference,
+          ),
+
+          const SizedBox(height: 16),
+          _SectionHeader('Gear'),
+          _GearSelector(
+            selectedIds: form.selectedGearIds,
+            adHocGear: form.adHocGear,
+            onToggle: notifier.toggleGear,
+            onAddAdHoc: notifier.addAdHocGear,
+          ),
+
+          const SizedBox(height: 16),
+          _SectionHeader('Personal'),
+          _UnitField(
+            field: DiveField.weight,
+            column: 'weight_kg',
+            label: 'Weight',
+            metricValue: form.weightKg,
+            unitPrefs: form.unitPreferences,
+            errorText: errors['weightKg'],
+            onMetricChanged: notifier.setWeight,
+            onUnitChanged: notifier.setUnitPreference,
+          ),
+          TextFormField(
+            initialValue: form.notes,
+            decoration: const InputDecoration(labelText: 'Notes'),
+            maxLines: 3,
+            onChanged: notifier.setNotes,
+          ),
+
+          if (form.saveError != null) ...[
+            const SizedBox(height: 8),
+            _ErrorText('Save failed: ${form.saveError}'),
           ],
-        ),
+          const SizedBox(height: 24),
+          FilledButton(
+            onPressed: form.isSaving
+                ? null
+                : () async {
+                    final ok = await notifier.save();
+                    if (ok && context.mounted) {
+                      Navigator.pop(context);
+                    }
+                  },
+            child: Text(form.isSaving ? 'Saving...' : 'Save Dive'),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _pickDateTime() async {
+  Future<void> _pickDateTime(
+    BuildContext context,
+    DateTime? current,
+    DiveFormNotifier notifier,
+  ) async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _startTime ?? DateTime.now(),
+      initialDate: current ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime.now().add(const Duration(days: 1)),
     );
     if (date == null) return;
-    if (!mounted) return;
-
+    if (!context.mounted) return;
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_startTime ?? DateTime.now()),
+      initialTime: TimeOfDay.fromDateTime(current ?? DateTime.now()),
     );
     if (time == null) return;
-
-    setState(() {
-      _startTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      );
-    });
-  }
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _saving = true);
-
-    final log = (widget.existingLog ?? DiveLog()).copyWith(
-      startTime: _startTime,
-      location: _locationCtrl.text.isEmpty ? null : _locationCtrl.text,
-      altitude: _altitudeCtrl.text.isEmpty ? null : _altitudeCtrl.text,
-      maxDepthM: double.tryParse(_maxDepthCtrl.text),
-      avgDepthM: double.tryParse(_avgDepthCtrl.text),
-      durationMin: double.tryParse(_durationCtrl.text),
-      gasType: _gasType,
-      gasOther: _gasType == 'Other' ? _gasOtherCtrl.text : null,
-      tankSize: _tankSizeCtrl.text.isEmpty ? null : _tankSizeCtrl.text,
-      startPressureBar: double.tryParse(_startPressureCtrl.text),
-      endPressureBar: double.tryParse(_endPressureCtrl.text),
-      waterTempC: double.tryParse(_waterTempCtrl.text),
-      salinity: _salinity,
-      visibilityM: double.tryParse(_visibilityCtrl.text),
-      weightKg: double.tryParse(_weightCtrl.text),
-      notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
-      isDraft: false,
-      updatedAt: DateTime.now(),
+    notifier.setStartTime(
+      DateTime(date.year, date.month, date.day, time.hour, time.minute),
     );
-
-    final db = ref.read(databaseProvider);
-    if (log.id != null) {
-      await db.updateDiveLog(log);
-    } else {
-      final newId = await db.insertDiveLog(log);
-      await db.setGearForDive(newId, _selectedGearIds.toList());
-    }
-    if (log.id != null) {
-      await db.setGearForDive(log.id!, _selectedGearIds.toList());
-    }
-
-    if (mounted) Navigator.pop(context);
   }
 }
 
@@ -345,33 +289,190 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+class _ErrorText extends StatelessWidget {
+  const _ErrorText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.error,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+/// A numeric field paired with a per-field unit dropdown (D-UNITS).
+///
+/// Storage is metric-canonical: [metricValue] is always in metric. The
+/// displayed value is converted via [UnitConverter.fromMetric]; entered
+/// values are converted back via [UnitConverter.toMetric] before calling
+/// [onMetricChanged]. The text field is keyed on the unit so it rebuilds
+/// (re-applying [initialValue]) when the unit changes.
+class _UnitField extends StatelessWidget {
+  const _UnitField({
+    required this.field,
+    required this.column,
+    required this.label,
+    required this.metricValue,
+    required this.unitPrefs,
+    required this.onMetricChanged,
+    required this.onUnitChanged,
+    this.errorText,
+  });
+
+  final DiveField field;
+  final String column;
+  final String label;
+  final double? metricValue;
+  final Map<String, String> unitPrefs;
+  final void Function(double? metric) onMetricChanged;
+  final void Function(String column, String unit) onUnitChanged;
+  final String? errorText;
+
+  static const _converter = UnitConverter();
+
+  @override
+  Widget build(BuildContext context) {
+    final unit = unitPrefs[column] ?? UnitConverter.defaultUnit(field);
+    final display = _converter.fromMetric(field, metricValue, unit);
+    final isInt =
+        field == DiveField.startPressure || field == DiveField.endPressure;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            // Re-key on unit so the field re-renders with the converted value
+            // when the unit changes.
+            key: ValueKey('${column}_$unit'),
+            initialValue: display == null
+                ? ''
+                : (isInt
+                      ? display.toStringAsFixed(0)
+                      : display.toStringAsFixed(1)),
+            decoration: InputDecoration(
+              labelText: '$label ($unit)',
+              errorText: errorText,
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (v) {
+              final entered = double.tryParse(v);
+              onMetricChanged(_converter.toMetric(field, entered, unit));
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 90,
+          child: DropdownButtonFormField<String>(
+            initialValue: unit,
+            decoration: const InputDecoration(labelText: 'Unit'),
+            items: UnitConverter.unitOptions(
+              field,
+            ).map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+            onChanged: (u) {
+              if (u != null) onUnitChanged(column, u);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _GearSelector extends ConsumerWidget {
-  const _GearSelector({required this.selectedIds, required this.onToggle});
+  const _GearSelector({
+    required this.selectedIds,
+    required this.adHocGear,
+    required this.onToggle,
+    required this.onAddAdHoc,
+  });
 
   final Set<int> selectedIds;
+  final List<String> adHocGear;
   final void Function(int) onToggle;
+  final void Function(String) onAddAdHoc;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncGear = ref.watch(gearListProvider);
+    final ctrl = TextEditingController();
 
     return asyncGear.when(
       data: (items) {
-        if (items.isEmpty) {
-          return const Text(
-            'No gear items. Add some in the gear screen.',
-            style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-          );
-        }
-        return Wrap(
-          children: items.map((item) {
-            final selected = selectedIds.contains(item.id);
-            return FilterChip(
-              label: Text(item.name),
-              selected: selected,
-              onSelected: (_) => onToggle(item.id!),
-            );
-          }).toList(),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (items.isEmpty)
+              const Text(
+                'No gear items. Add some in the gear screen.',
+                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+              )
+            else
+              Wrap(
+                children: items.map((item) {
+                  final selected = selectedIds.contains(item.id);
+                  return FilterChip(
+                    label: Text(item.name),
+                    selected: selected,
+                    onSelected: (_) => onToggle(item.id!),
+                  );
+                }).toList(),
+              ),
+            if (adHocGear.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                children: adHocGear
+                    .map(
+                      (text) => FilterChip(
+                        label: Text(text),
+                        selected: true,
+                        onSelected: (_) => onAddAdHoc(text),
+                        // Ad-hoc entries are visually distinct.
+                        avatar: const Icon(Icons.edit, size: 16),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: ctrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Add ad-hoc gear',
+                      isDense: true,
+                    ),
+                    onSubmitted: (v) {
+                      if (v.trim().isNotEmpty) {
+                        onAddAdHoc(v);
+                        ctrl.clear();
+                      }
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: () {
+                    if (ctrl.text.trim().isNotEmpty) {
+                      onAddAdHoc(ctrl.text);
+                      ctrl.clear();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
         );
       },
       loading: () => const Text('Loading gear...'),

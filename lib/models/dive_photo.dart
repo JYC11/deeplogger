@@ -10,17 +10,19 @@ class DivePhoto {
   final String localPath;
   final DateTime? takenAt;
 
+  static const Object _unset = Object();
+
   DivePhoto copyWith({
     int? id,
-    int? diveLogId,
+    Object? diveLogId = _unset,
     String? localPath,
-    DateTime? takenAt,
+    Object? takenAt = _unset,
   }) {
     return DivePhoto(
       id: id ?? this.id,
-      diveLogId: diveLogId ?? this.diveLogId,
+      diveLogId: diveLogId == _unset ? this.diveLogId : diveLogId as int?,
       localPath: localPath ?? this.localPath,
-      takenAt: takenAt ?? this.takenAt,
+      takenAt: takenAt == _unset ? this.takenAt : takenAt as DateTime?,
     );
   }
 
