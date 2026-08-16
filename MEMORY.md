@@ -16,7 +16,7 @@ Full audit found no security-critical issues. Fixed/removed per plan `.plan/03-r
 
 ## Current State
 - **Tests**: 149 passing, `flutter analyze` clean, `dart format` applied.
-- **Git**: `main`, working tree has uncommitted remediation changes (not yet committed).
+- **Git**: `main` synced with `origin/main` (commit `eff8f2c` — Plan 03 remediation), working tree clean.
 - **Filament**: tasks T1–T12 closed under plan `review-remediation`; 3 new lessons captured.
 
 ## What's Next
