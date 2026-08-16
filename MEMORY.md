@@ -1,7 +1,7 @@
 # DeepLogger Session State
 
 **Last updated**: 2026-08-16
-**Phase**: Review remediation (Plan 03) COMPLETE — full codebase audit + fixes landed
+**Phase**: Review remediation (Plan 03) COMPLETE — landed, committed, pushed. Session closed.
 
 ## Review Remediation (Plan 03)
 
@@ -16,13 +16,12 @@ Full audit found no security-critical issues. Fixed/removed per plan `.plan/03-r
 
 ## Current State
 - **Tests**: 149 passing, `flutter analyze` clean, `dart format` applied.
-- **Git**: `main` synced with `origin/main` (commit `eff8f2c` — Plan 03 remediation), working tree clean.
-- **Filament**: tasks T1–T12 closed under plan `review-remediation`; 3 new lessons captured.
+- **Git**: `main` synced with `origin/main` (Plan 03 commits `eff8f2c`, `dad7052`), working tree clean.
+- **Filament**: tasks T1–T12 closed under plan `review-remediation` (closed); 19 lessons captured total.
 
 ## What's Next
 1. **Android emulator QA**: run on Android emulator if available (only iOS sim tested).
-2. **Commit** the Plan 03 changes when the user requests it.
-3. Continue feature development per PRD roadmap.
+2. Continue feature development per PRD roadmap.
 
 ## QA Session Results (prior session)
 
@@ -58,10 +57,12 @@ Full audit found no security-critical issues. Fixed/removed per plan `.plan/03-r
 - **Form validation errors persist**: always clear the specific error key when a field is updated, not just on next save. Applies to ALL form providers (dive, gear, cert). (lesson `57ttwjr2`)
 - **Gear items table has no `updated_at` column**: don't include it in update maps. Only `dive_logs` has timestamp columns. (lesson `dirml1ly`)
 - **autoDispose providers stay cached while watched**: invalidate ALL affected providers after an edit, not just the main one. `diveDetailProvider` invalidation alone doesn't refresh `diveGearEntriesProvider`/`divePhotosProvider`/`sightingsProvider`. (lesson `wjbhpeb5`)
+- **FilterChip `onSelected` fires with the inverse of current selection**: a `selected: true` chip passes `false` on tap — thread the bool to add/remove, don't ignore it. (lesson `i42z40wf`)
+- **Public final fields are not promoted** after a null guard (only private final fields/locals are); use `id!`. (lesson `k9afbbl4`)
+- **`ListView(children:)` mounts children lazily in widget tests**: off-screen fields aren't found by `find.text`; use `tester.dragUntilVisible(finder, find.byType(ListView), Offset(0,-300))` (multiple Scrollables make `scrollUntilVisible` ambiguous). (lesson `n6wyze2c`)
 
 ## QA notes — intentional decisions to flag (not bugs)
 - **iOS permission = `readWrite`** (not readOnly): PhotoKit has NO read-only level (`addOnly` is write-only). App calls no write APIs. (lesson `4wagigxa`)
-- **Back-compat wrappers kept**: `getAllDiveLogs`/`getAllCertifications`/`getAllGearItems` delegate to paginated methods.
 - **`tankSize` field removed from new-dive form** but column + legacy fallback kept for SAC.
 - **Placeholder app icon** is a simple teal circle (1024×1024) — designer swaps `assets/icon_placeholder.png` + reruns `fvm dart run flutter_launcher_icons`.
 
