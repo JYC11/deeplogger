@@ -79,41 +79,6 @@ class ImageStore {
     }
   }
 
-  /// Creates a compressed thumbnail of an image and saves it to the app dir.
-  ///
-  /// [maxSize] is the maximum width AND height in pixels (both dimensions are
-  /// constrained, preserving aspect ratio — fixes the previous width-only
-  /// resize bug). Runs the decode/resize/encode in a background isolate.
-  Future<String> createThumbnail(
-    String sourcePath, {
-    int maxSize = kThumbnailDim,
-  }) async {
-    try {
-      final appDir = await _appDir();
-      final thumbsDir = Directory(p.join(appDir.path, 'thumbnails'));
-
-      if (!await thumbsDir.exists()) {
-        await thumbsDir.create(recursive: true);
-      }
-
-      final sourceFile = File(sourcePath);
-      final bytes = await sourceFile.readAsBytes();
-      final thumb = await compute(
-        _thumbnailIsolate,
-        _CompressParams(bytes, maxSize, kPhotoQuality),
-      );
-
-      final thumbPath = p.join(
-        thumbsDir.path,
-        'thumb_${DateTime.now().microsecondsSinceEpoch}.jpg',
-      );
-      await File(thumbPath).writeAsBytes(thumb);
-      return thumbPath;
-    } catch (e, st) {
-      Error.throwWithStackTrace(e, st);
-    }
-  }
-
   /// Returns the canonical thumbnail path for a dive photo id (D-THUMB). Does
   /// NOT generate the thumbnail — callers should use [ensureThumbnail].
   Future<String> thumbnailPathFor(int photoId) async {

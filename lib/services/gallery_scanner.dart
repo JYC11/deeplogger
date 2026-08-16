@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../models/scanned_photo.dart';
-import 'image_store.dart';
 
 /// Scans the device gallery for photos and extracts timestamps for dive grouping.
 ///
@@ -169,16 +168,5 @@ class GalleryScanner {
     } catch (_) {
       return null;
     }
-  }
-
-  /// Copies a gallery asset into the app's private directory.
-  ///
-  /// Returns the local path of the copied file, or null if the asset
-  /// couldn't be loaded.
-  Future<String?> copyAssetToAppDir(AssetEntity asset) async {
-    final file = await asset.originFile;
-    if (file == null || !await file.exists()) return null;
-
-    return ImageStore.instance.copyToAppDir(file.path);
   }
 }

@@ -139,7 +139,7 @@ void main() {
       final ok = await notifier.save();
       expect(ok, isTrue);
 
-      final all = await db.getAllDiveLogs();
+      final all = (await db.getDiveLogs()).logs;
       expect(all.length, 1);
       expect(all.first.location, 'New Spot');
       final gearRefs = await db.getGearEntriesForDive(all.first.id!);

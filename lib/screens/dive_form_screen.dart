@@ -204,6 +204,7 @@ class _DiveFormBody extends ConsumerWidget {
             adHocGear: form.adHocGear,
             onToggle: notifier.toggleGear,
             onAddAdHoc: notifier.addAdHocGear,
+            onRemoveAdHoc: notifier.removeAdHocGear,
           ),
 
           const SizedBox(height: 16),
@@ -394,12 +395,14 @@ class _GearSelector extends ConsumerWidget {
     required this.adHocGear,
     required this.onToggle,
     required this.onAddAdHoc,
+    required this.onRemoveAdHoc,
   });
 
   final Set<int> selectedIds;
   final List<String> adHocGear;
   final void Function(int) onToggle;
   final void Function(String) onAddAdHoc;
+  final void Function(String) onRemoveAdHoc;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -435,7 +438,10 @@ class _GearSelector extends ConsumerWidget {
                       (text) => FilterChip(
                         label: Text(text),
                         selected: true,
-                        onSelected: (_) => onAddAdHoc(text),
+                        // Tapping a selected ad-hoc chip removes it; the
+                        // boolean flips to false on tap.
+                        onSelected: (selected) =>
+                            selected ? onAddAdHoc(text) : onRemoveAdHoc(text),
                         // Ad-hoc entries are visually distinct.
                         avatar: const Icon(Icons.edit, size: 16),
                       ),

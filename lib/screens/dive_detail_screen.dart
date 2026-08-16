@@ -9,6 +9,7 @@ import '../models/dive_photo.dart';
 import '../models/gear_ref.dart';
 import '../providers/dive_providers.dart';
 import '../providers/sighting_form_provider.dart';
+import '../services/image_store.dart';
 import '../services/sac_calculator.dart';
 import '../services/share_card.dart';
 import 'dive_form_screen.dart';
@@ -135,22 +136,14 @@ class DiveDetailView extends ConsumerWidget {
 
         const SizedBox(height: 24),
 
-        // SAC detail
+        // SAC detail — L/min is the primary (metric) stat (PRD §8.2).
+        // bar/min and the imperial conversions live in the expandable
+        // "Details" tile below to avoid clutter.
         if (sac != null) ...[
           Text('SAC Rate', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           if (sac.litersPerMin != null)
             _StatRow('L/min', sac.litersPerMin!.toStringAsFixed(1)),
-          _StatRow('bar/min', sac.barPerMin.toStringAsFixed(2)),
-          if (sac.psiPerMin != null)
-            _StatRow('psi/min', sac.psiPerMin!.toStringAsFixed(1)),
-          if (sac.cubicFtPerMin != null)
-            _StatRow('cu ft/min', sac.cubicFtPerMin!.toStringAsFixed(2)),
-          if (!sac.hasFullSac)
-            const Text(
-              'Tank volume unknown — showing bar/min only',
-              style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-            ),
           const SizedBox(height: 24),
         ],
 
@@ -158,6 +151,21 @@ class DiveDetailView extends ConsumerWidget {
         ExpansionTile(
           title: const Text('Details'),
           children: [
+            if (sac != null) ...[
+              _StatRow('bar/min', sac.barPerMin.toStringAsFixed(2)),
+              if (sac.psiPerMin != null)
+                _StatRow('psi/min', sac.psiPerMin!.toStringAsFixed(1)),
+              if (sac.cubicFtPerMin != null)
+                _StatRow('cu ft/min', sac.cubicFtPerMin!.toStringAsFixed(2)),
+              if (!sac.hasFullSac)
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, right: 16, bottom: 8),
+                  child: Text(
+                    'Tank volume unknown — showing bar/min only',
+                    style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+                  ),
+                ),
+            ],
             _StatRow('Tank Size', log.tankSize ?? '—'),
             _StatRow('Gas', _gasLabel(log)),
             _StatRow('Start Pressure', '${log.startPressureBar ?? '—'} bar'),
@@ -255,22 +263,7 @@ class _PhotosSection extends ConsumerWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: photos.map((photo) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(photo.localPath),
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      cacheWidth: 200,
-                      errorBuilder: (_, _, _) => Container(
-                        width: 100,
-                        height: 100,
-                        color: Colors.grey.shade300,
-                        child: const Icon(Icons.broken_image),
-                      ),
-                    ),
-                  );
+                  return _PhotoThumb(photo: photo);
                 }).toList(),
               ),
             ),
@@ -282,6 +275,62 @@ class _PhotosSection extends ConsumerWidget {
         child: Text('Loading photos...'),
       ),
       error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// A 100×100 photo tile that resolves a lazy thumbnail (D-THUMB) for the
+/// photo id on init, falling back to the full-size copied file if the
+/// thumbnail can't be generated (missing id, decode failure, etc.).
+class _PhotoThumb extends StatefulWidget {
+  const _PhotoThumb({required this.photo});
+
+  final DivePhoto photo;
+
+  @override
+  State<_PhotoThumb> createState() => _PhotoThumbState();
+}
+
+class _PhotoThumbState extends State<_PhotoThumb> {
+  String? _thumbPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  Future<void> _resolve() async {
+    final id = widget.photo.id;
+    if (id == null) return;
+    try {
+      final path = await ImageStore.instance.ensureThumbnail(
+        id,
+        widget.photo.localPath,
+      );
+      if (mounted) setState(() => _thumbPath = path);
+    } catch (_) {
+      // Fall back to the full-size file below.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.file(
+        File(_thumbPath ?? widget.photo.localPath),
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        cacheWidth: 200,
+        errorBuilder: (_, _, _) => Container(
+          width: 100,
+          height: 100,
+          color: Colors.grey.shade300,
+          child: const Icon(Icons.broken_image),
+        ),
+      ),
     );
   }
 }

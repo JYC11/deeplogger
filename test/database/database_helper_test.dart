@@ -78,7 +78,7 @@ void main() {
       expect(retrieved.id, id);
     });
 
-    test('getAllDiveLogs returns sorted by start_time DESC', () async {
+    test('getDiveLogs returns sorted by start_time DESC', () async {
       await db.insertDiveLog(
         DiveLog(startTime: DateTime(2026, 1, 15), location: 'January Dive'),
       );
@@ -89,11 +89,11 @@ void main() {
         DiveLog(startTime: DateTime(2026, 2, 20), location: 'February Dive'),
       );
 
-      final logs = await db.getAllDiveLogs();
-      expect(logs.length, 3);
-      expect(logs[0].location, 'March Dive');
-      expect(logs[1].location, 'February Dive');
-      expect(logs[2].location, 'January Dive');
+      final logs = await db.getDiveLogs();
+      expect(logs.logs.length, 3);
+      expect(logs.logs[0].location, 'March Dive');
+      expect(logs.logs[1].location, 'February Dive');
+      expect(logs.logs[2].location, 'January Dive');
     });
 
     test('update modifies fields', () async {
@@ -161,17 +161,6 @@ void main() {
       expect(photos[0].localPath, '/docs/photo2.jpg');
       expect(photos[1].localPath, '/docs/photo1.jpg');
     });
-
-    test('delete photo removes it', () async {
-      final diveId = await db.insertDiveLog(
-        DiveLog(startTime: DateTime(2026, 1, 1), location: 'D'),
-      );
-      final photoId = await db.insertDivePhoto(
-        DivePhoto(diveLogId: diveId, localPath: '/p.jpg'),
-      );
-      expect(await db.deleteDivePhoto(photoId), 1);
-      expect(await db.getDivePhotosForLog(diveId), isEmpty);
-    });
   });
 
   group('Sighting CRUD', () {
@@ -231,10 +220,21 @@ void main() {
         ),
       );
 
-      final certs = await db.getAllCertifications();
-      expect(certs.length, 2);
-      expect(certs[0].org, 'PADI');
-      expect(certs[1].org, 'SSI');
+      final certs = await db.getCertifications();
+      expect(certs.certs.length, 2);
+      expect(certs.certs[0].org, 'PADI');
+      expect(certs.certs[1].org, 'SSI');
+    });
+
+    test('getCertification returns a single row by id', () async {
+      final id = await db.insertCertification(
+        Certification(org: 'PADI', level: 'Rescue', certId: 'AB12'),
+      );
+      final cert = await db.getCertification(id);
+      expect(cert, isNotNull);
+      expect(cert!.org, 'PADI');
+      expect(cert.level, 'Rescue');
+      expect(await db.getCertification(999999), isNull);
     });
 
     test('delete certification', () async {
@@ -242,7 +242,8 @@ void main() {
         Certification(org: 'BSAC', level: 'Sports Diver'),
       );
       expect(await db.deleteCertification(id), 1);
-      expect(await db.getAllCertifications(), isEmpty);
+      final remaining = await db.getCertifications();
+      expect(remaining.certs, isEmpty);
     });
   });
 
@@ -259,42 +260,25 @@ void main() {
       expect(items[2].name, 'Wetsuit 5mm');
     });
 
+    test('getGearItem returns a single row by id', () async {
+      final id = await db.insertGearItem(
+        GearItem(
+          name: 'Regulator',
+          typeNotes: 'Balanced',
+          category: 'Regulator',
+        ),
+      );
+      final item = await db.getGearItem(id);
+      expect(item, isNotNull);
+      expect(item!.name, 'Regulator');
+      expect(item.category, 'Regulator');
+      expect(await db.getGearItem(999999), isNull);
+    });
+
     test('delete gear item', () async {
       final id = await db.insertGearItem(GearItem(name: 'Regulator'));
       expect(await db.deleteGearItem(id), 1);
       expect(await db.getAllGearItems(), isEmpty);
-    });
-  });
-
-  group('dive_log_gear M2M', () {
-    test('set and get gear for a dive', () async {
-      final diveId = await db.insertDiveLog(
-        DiveLog(startTime: DateTime(2026, 1, 1), location: 'Gear Dive'),
-      );
-      final g1 = await db.insertGearItem(GearItem(name: 'Wetsuit 3mm'));
-      final g3 = await db.insertGearItem(GearItem(name: 'Fins'));
-
-      await db.setGearForDive(diveId, [g1, g3]);
-
-      final gear = await db.getGearForDive(diveId);
-      expect(gear.length, 2);
-      expect(gear.map((g) => g.name).toSet(), {'Wetsuit 3mm', 'Fins'});
-    });
-
-    test('setGearForDive replaces previous selection', () async {
-      final diveId = await db.insertDiveLog(
-        DiveLog(startTime: DateTime(2026, 1, 1), location: 'D'),
-      );
-      final g1 = await db.insertGearItem(GearItem(name: 'Mask'));
-      final g2 = await db.insertGearItem(GearItem(name: 'Snorkel'));
-
-      await db.setGearForDive(diveId, [g1]);
-      expect((await db.getGearForDive(diveId)).length, 1);
-
-      await db.setGearForDive(diveId, [g2]);
-      final gear = await db.getGearForDive(diveId);
-      expect(gear.length, 1);
-      expect(gear[0].name, 'Snorkel');
     });
   });
 
@@ -443,7 +427,7 @@ void main() {
         DiveLog(startTime: DateTime(2026, 1, 1), location: 'Mixed Gear Dive'),
       );
       final gId = await db.insertGearItem(GearItem(name: 'Mask'));
-      await db.setGearForDive(diveId, [gId]);
+      await db.setGearEntriesForDive(diveId, gearItemIds: [gId]);
       // Insert an ad-hoc gear_text row directly.
       await (await db.database).rawInsert(
         'INSERT INTO dive_log_gear (dive_log_id, gear_text) VALUES (?, ?)',
@@ -494,7 +478,7 @@ void main() {
         Sighting(diveLogId: diveId, divePhotoId: photoId, commonName: 'Nemo'),
       );
       final gId = await db.insertGearItem(GearItem(name: 'Fins'));
-      await db.setGearForDive(diveId, [gId]);
+      await db.setGearEntriesForDive(diveId, gearItemIds: [gId]);
 
       final detail = await db.getDiveDetail(diveId);
       expect(detail, isA<DiveDetail>());

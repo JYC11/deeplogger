@@ -32,19 +32,21 @@ void main() {
     test('lists every .sql file in assets/migrations/', () async {
       final dir = Directory('assets/migrations');
       final onDisk = await dir.list().toList();
-      final sqlFiles = onDisk
-          .whereType<File>()
-          .map((f) => f.path)
-          .where((p) => p.endsWith('.sql'))
-          .toList()
-        ..sort();
+      final sqlFiles =
+          onDisk
+              .whereType<File>()
+              .map((f) => f.path)
+              .where((p) => p.endsWith('.sql'))
+              .toList()
+            ..sort();
       // Normalize disk paths to forward-slash asset paths.
       final normalized = sqlFiles.map((p) => p.replaceAll('\\', '/')).toList();
       expect(MigrationRunner.migrationAssets, containsAll(normalized));
       expect(
         MigrationRunner.migrationAssets.length,
         normalized.length,
-        reason: 'migrationAssets has stale or missing entries — '
+        reason:
+            'migrationAssets has stale or missing entries — '
             'update MigrationRunner.migrationAssets to match assets/migrations/',
       );
     });

@@ -1,9 +1,30 @@
 # DeepLogger Session State
 
-**Last updated**: 2026-08-12
-**Phase**: QA session COMPLETE — 5 bugs found and fixed
+**Last updated**: 2026-08-16
+**Phase**: Review remediation (Plan 03) COMPLETE — full codebase audit + fixes landed
 
-## QA Session Results
+## Review Remediation (Plan 03)
+
+Full audit found no security-critical issues. Fixed/removed per plan `.plan/03-review-remediation.md`:
+- **Bug**: ad-hoc gear chip duplicated its entry on every tap (FilterChip `onSelected` ignored the bool). Now remove-on-deselect; widget test added.
+- **Dead code removed**: `diveListProvider`/`diveDetailFullProvider`/`diveGearProvider`/`certificationListProvider`; DB `getAllDiveLogs`/`getAllCertifications`/`getGearForDive`/`setGearForDive`/`deleteDivePhoto`; `createDraftDiveLogs`; `copyAssetToAppDir`; `createThumbnail`; `promoteAdHocGear`.
+- **Perf**: edit-form notifiers now use single-row `getGearItem(id)`/`getCertification(id)` (was `limit: 100000` + `firstWhere`); search input debounced 300 ms.
+- **Spec alignment**: imperial SAC (psi/min, cu ft/min) + bar/min moved into the expandable Details tile per PRD §8.2; L/min stays primary. Widget tests verify.
+- **Thumbnails wired**: dive-detail grid renders via `ensureThumbnail` (was dead code; docs now accurate).
+- **Atomicity**: `setGearEntriesForDive` wrapped in `db.transaction`.
+- **DRY**: shared `_groupClusters<T>` for D-GROUP.
+
+## Current State
+- **Tests**: 149 passing, `flutter analyze` clean, `dart format` applied.
+- **Git**: `main`, working tree has uncommitted remediation changes (not yet committed).
+- **Filament**: tasks T1–T12 closed under plan `review-remediation`; 3 new lessons captured.
+
+## What's Next
+1. **Android emulator QA**: run on Android emulator if available (only iOS sim tested).
+2. **Commit** the Plan 03 changes when the user requests it.
+3. Continue feature development per PRD roadmap.
+
+## QA Session Results (prior session)
 
 ### Bugs Found & Fixed
 1. **AssetManifest.json crash (CRITICAL)** — App crashed on launch. `MigrationRunner._defaultDiscoverer` loaded `AssetManifest.json` via `rootBundle.loadString`, but Flutter 3.16+ generates `AssetManifest.bin` (binary) instead. Tests masked this because they inject a custom disk-based discoverer. Fix: replaced with explicit `MigrationRunner.migrationAssets` constant list. Added test verifying list matches disk files. (lesson `5urqxrkk`)
@@ -22,17 +43,6 @@
 - [x] Gear: add (name validation), edit (preload all fields + category dropdown with kDefaultGearCategories), category filter, delete, link to dive via FilterChip
 - [x] Certifications: add (org+level validation, ID, issue date picker), edit (all fields preloaded), delete, grouped by org in ExpansionTile
 - [x] Deferred/out-of-scope items: no regression
-
-## Current State
-- **Tests**: 151 passing, `flutter analyze` clean
-- **Git**: uncommitted changes in 5 files (migration_runner, dive_form_provider, gear_form_provider, certification_form_provider, dive_detail_screen) + test + AGENTS.md + MEMORY.md
-- **Filament**: 16 lessons captured (12 + 4 from QA)
-- **Not committed**: changes need review/commit
-
-## What's Next
-1. **Commit** all 5 bug fixes
-2. **Android emulator QA**: run on Android emulator if available (only iOS sim tested)
-3. **Continue feature development** per PRD roadmap
 
 ## Gotchas / Lessons (for QA debugging)
 - **Riverpod 3.x family notifiers**: extend `AsyncNotifier<State>`, arg via constructor, `build()` takes no args. No `FamilyAsyncNotifier` base. (lesson `z8uzw60n`)

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database_helper.dart';
 import '../models/dive_log.dart';
-import '../models/gear_item.dart';
 import '../models/gear_ref.dart';
 import '../services/unit_converter.dart';
 import '../services/unit_preferences.dart';
@@ -219,10 +218,12 @@ class DiveFormNotifier extends AsyncNotifier<DiveFormState> {
     _update(s: state.value!.copyWith(startTime: v));
     _clearError('startTime');
   }
+
   void setLocation(String v) {
     _update(s: state.value!.copyWith(location: v));
     _clearError('location');
   }
+
   void setAltitude(String v) => _update(s: state.value!.copyWith(altitude: v));
   void setMaxDepth(double? v) =>
       _update(s: state.value!.copyWith(maxDepthM: v));
@@ -302,20 +303,6 @@ class DiveFormNotifier extends AsyncNotifier<DiveFormState> {
   void removeAdHocGear(String text) {
     final list = List<String>.from(state.value!.adHocGear)..remove(text);
     _update(s: state.value!.copyWith(adHocGear: list));
-  }
-
-  /// Promote an ad-hoc gear entry to a master [GearItem] and re-link this
-  /// dive's row to it (D-GEAR). Returns the new gear item id on success.
-  Future<int?> promoteAdHocGear(String text) async {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return null;
-    final newId = await _db.insertGearItem(GearItem(name: trimmed));
-    final ids = Set<int>.from(state.value!.selectedGearIds)..add(newId);
-    final list = List<String>.from(state.value!.adHocGear)..remove(trimmed);
-    _update(
-      s: state.value!.copyWith(selectedGearIds: ids, adHocGear: list),
-    );
-    return newId;
   }
 
   // --- Save ---

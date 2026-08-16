@@ -25,6 +25,7 @@ class _DiveListScreenState extends ConsumerState<DiveListScreen> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   bool _searchVisible = false;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -34,10 +35,19 @@ class _DiveListScreenState extends ConsumerState<DiveListScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Debounces search input so a DB query doesn't fire per keystroke.
+  void _onSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(diveListNotifierProvider.notifier).setSearch(v);
+    });
   }
 
   void _onScroll() {
@@ -125,9 +135,7 @@ class _DiveListScreenState extends ConsumerState<DiveListScreen> {
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    onChanged: (v) => ref
-                        .read(diveListNotifierProvider.notifier)
-                        .setSearch(v),
+                    onChanged: _onSearchChanged,
                   ),
                 ),
               )

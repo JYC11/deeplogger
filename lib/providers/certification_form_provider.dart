@@ -69,11 +69,8 @@ class CertificationFormNotifier extends AsyncNotifier<CertificationFormState> {
   @override
   Future<CertificationFormState> build() async {
     if (id == null) return const CertificationFormState();
-    final certs = (await _db.getCertifications(limit: 100000)).certs;
-    final cert = certs.firstWhere(
-      (c) => c.id == id,
-      orElse: () => Certification(org: '', level: '', id: id),
-    );
+    final cert = await _db.getCertification(id!);
+    if (cert == null) return const CertificationFormState();
     return CertificationFormState(
       existingId: id,
       org: cert.org,
@@ -96,10 +93,12 @@ class CertificationFormNotifier extends AsyncNotifier<CertificationFormState> {
     _update(s: state.value!.copyWith(org: v));
     _clearError('org');
   }
+
   void setLevel(String v) {
     _update(s: state.value!.copyWith(level: v));
     _clearError('level');
   }
+
   void setCertId(String v) => _update(s: state.value!.copyWith(certId: v));
   void setIssueDate(DateTime? v) =>
       _update(s: state.value!.copyWith(issueDate: v));

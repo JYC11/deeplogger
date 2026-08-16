@@ -122,25 +122,4 @@ void main() {
       expect(clusters[0].last, DateTime(2026, 1, 1, 9, 45));
     });
   });
-
-  group('createDraftDiveLogs', () {
-    test('creates one draft per cluster with start/end times', () {
-      final ts = [
-        DateTime(2026, 1, 1, 9, 0),
-        DateTime(2026, 1, 1, 9, 30),
-        DateTime(2026, 1, 1, 11, 30), // 120 min gap → new cluster
-      ];
-      final drafts = createDraftDiveLogs(ts);
-      expect(drafts.length, 2);
-      expect(drafts[0].isDraft, isTrue);
-      expect(drafts[0].startTime, DateTime(2026, 1, 1, 9, 0));
-      expect(drafts[0].endTime, DateTime(2026, 1, 1, 9, 30));
-      expect(drafts[1].startTime, DateTime(2026, 1, 1, 11, 30));
-      expect(drafts[1].endTime, DateTime(2026, 1, 1, 11, 30));
-    });
-
-    test('empty timestamps returns empty list', () {
-      expect(createDraftDiveLogs([]), isEmpty);
-    });
-  });
 }

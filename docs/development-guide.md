@@ -58,7 +58,7 @@ We use `flutter_riverpod` 3.4.2 in classic (non-code-gen) style. No `@riverpod` 
 
 | Provider type | When to use | Example |
 |---|---|---|
-| `FutureProvider` | One-shot async reads (DB queries) | `diveListProvider` — fetches all dives |
+| `FutureProvider` | One-shot async reads (DB queries) | `gearListProvider` — fetches the master gear list |
 | `FutureProvider.family` | Parameterized async reads | `diveDetailProvider(id)` — fetch one dive |
 | `Provider` | Sync computed values | `sacProvider(log)` — SAC from a DiveLog |
 | `Provider` | Singleton access | `databaseProvider` — DatabaseHelper.instance |
@@ -66,7 +66,7 @@ We use `flutter_riverpod` 3.4.2 in classic (non-code-gen) style. No `@riverpod` 
 ### Key conventions
 
 - **Watch for data, read for actions**: `ref.watch(provider)` in `build()` to rebuild when data changes; `ref.read(provider)` in callbacks to perform a one-shot action.
-- **Invalidate after mutations**: after `insertDiveLog`/`updateDiveLog`/`deleteDiveLog`, call `ref.invalidate(diveListProvider)` to re-fetch.
+- **Invalidate after mutations**: after `insertDiveLog`/`updateDiveLog`/`deleteDiveLog`, call `ref.read(diveListNotifierProvider.notifier).refresh()` to reload page 0 keeping search/sort.
 - **`AsyncValue.when`**: use `.when(data:, loading:, error:)` to handle async states in the UI. This replaces hand-rolled loading/error enums.
 
 ### What we do NOT use
@@ -193,7 +193,7 @@ Pattern:
 await tester.pumpWidget(
   ProviderScope(
     overrides: [
-      diveListProvider.overrideWith((ref) async => fakeDiveLogs),
+      diveListNotifierProvider.overrideWith(() => _StubListNotifier()),
     ],
     child: const DeepLoggerApp(),
   ),

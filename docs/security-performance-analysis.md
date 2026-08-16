@@ -33,10 +33,11 @@ Parameterized queries handle injection. Form-layer validation (D3) constrains nu
 | In-Dart draft filter | **Fixed (B1)** | `includeDrafts` moved into the SQL `WHERE` clause (was filtered in Dart after a full fetch). |
 | Sequential EXIF reads | **Fixed (G1)** | Per-asset timestamp extraction is chunked with `Future.wait` (8 at a time) on the platform thread. `AssetEntity` can't cross isolates, so `compute()` is not used for the fetch; the pure-Dart EXIF parse could be offloaded but the dominant cost (sequential I/O) is addressed by chunking. Perf gate: 1,000 photos < 3 s (NFR-2) — verify on device. |
 | UI-isolate image decode | **Fixed (E3)** | `ImageStore.copyToAppDir` compresses on copy (max 1600 px, JPEG q85) via `compute()`. Thumbnails generated via `compute()` too. |
-| Thumbnail memory | **Fixed (E3 + F1)** | Thumbnails are filesystem-only (path derived from photo id, no DB column), lazy-generated, and the detail grid uses `cacheWidth`/`cacheHeight` hints. |
+| Thumbnail memory | **Fixed (E3 + F1)** | Thumbnails are filesystem-only (path derived from photo id, no DB column), lazy-generated via `ImageStore.ensureThumbnail`, and the dive-detail photo grid renders them (full file + `cacheWidth` fallback). |
 | Full table scan on invalidate | **Fixed (C3)** | List screens use `DiveListNotifier.refresh()` (reloads page 0 keeping search/sort) instead of `ref.invalidate(diveListProvider)` (which lost state and re-fetched all). |
 | N+1 detail queries | **Fixed (B2)** | `getDiveDetail` loads log + photos + sightings + gear in one round trip via `Future.wait` on a single handle. |
 | Edit-gear data loss | **Fixed (C2)** | The form notifier preloads gear via `getGearEntriesForDive` (the old form never loaded it, so saving an edit wiped the selection). |
+| Non-atomic gear writes | **Fixed** | `setGearEntriesForDive` (delete + batch insert) runs inside `db.transaction`, so a mid-write failure can't strip a dive of its gear. |
 
 ## Deferred
 - SQLCipher encryption (see above).

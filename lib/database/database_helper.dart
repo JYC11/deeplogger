@@ -150,14 +150,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Back-compat wrapper around [getDiveLogs] (large page, default sort).
-  /// Prefer [getDiveLogs] from new code; will be removed once call sites
-  /// migrate to paginated providers.
-  Future<List<DiveLog>> getAllDiveLogs({bool drafts = true}) async {
-    final result = await getDiveLogs(includeDrafts: drafts, limit: 100000);
-    return result.logs;
-  }
-
   Future<int> updateDiveLog(DiveLog log) async {
     final db = await database;
     final map = log.toMap();
@@ -192,11 +184,6 @@ class DatabaseHelper {
       limit: limit,
     );
     return maps.map(DivePhoto.fromMap).toList();
-  }
-
-  Future<int> deleteDivePhoto(int id) async {
-    final db = await database;
-    return db.delete('dive_photos', where: 'id = ?', whereArgs: [id]);
   }
 
   // --- Sighting CRUD ---
@@ -234,6 +221,17 @@ class DatabaseHelper {
     final map = cert.toMap();
     map.remove('id');
     return db.insert('certifications', map);
+  }
+
+  Future<Certification?> getCertification(int id) async {
+    final db = await database;
+    final maps = await db.query(
+      'certifications',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    if (maps.isEmpty) return null;
+    return Certification.fromMap(maps.first);
   }
 
   Future<({List<Certification> certs, bool hasMore})> getCertifications({
@@ -276,16 +274,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Back-compat wrapper around [getCertifications].
-  Future<List<Certification>> getAllCertifications() async {
-    final result = await getCertifications(
-      limit: 100000,
-      sortField: CertificationSortField.org,
-      sortDesc: false,
-    );
-    return result.certs;
-  }
-
   Future<int> deleteCertification(int id) async {
     final db = await database;
     return db.delete('certifications', where: 'id = ?', whereArgs: [id]);
@@ -298,6 +286,13 @@ class DatabaseHelper {
     final map = item.toMap();
     map.remove('id');
     return db.insert('gear_items', map);
+  }
+
+  Future<GearItem?> getGearItem(int id) async {
+    final db = await database;
+    final maps = await db.query('gear_items', where: 'id = ?', whereArgs: [id]);
+    if (maps.isEmpty) return null;
+    return GearItem.fromMap(maps.first);
   }
 
   Future<({List<GearItem> items, bool hasMore})> getGearItems({
@@ -356,72 +351,46 @@ class DatabaseHelper {
 
   // --- dive_log_gear (M2M) ---
 
-  Future<void> setGearForDive(int diveLogId, List<int> gearItemIds) async {
-    final db = await database;
-    await db.delete(
-      'dive_log_gear',
-      where: 'dive_log_id = ?',
-      whereArgs: [diveLogId],
-    );
-    final batch = db.batch();
-    for (final gearId in gearItemIds) {
-      batch.insert('dive_log_gear', {
-        'dive_log_id': diveLogId,
-        'gear_item_id': gearId,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-    }
-    await batch.commit(noResult: true);
-  }
-
   /// Replaces all gear entries for a dive with the given mixed set of master
   /// gear-item ids and ad-hoc free-text names. Rows with a null [gearItemIds]
   /// entry use [adHocGearTexts]. The partial unique index on
   /// `(dive_log_id, gear_item_id)` prevents duplicate master-item rows.
+  ///
+  /// Runs inside a transaction so the delete + inserts are atomic — a failure
+  /// mid-write can't leave the dive with no gear.
   Future<void> setGearEntriesForDive(
     int diveLogId, {
     List<int> gearItemIds = const [],
     List<String> adHocGearTexts = const [],
   }) async {
     final db = await database;
-    await db.delete(
-      'dive_log_gear',
-      where: 'dive_log_id = ?',
-      whereArgs: [diveLogId],
-    );
-    final batch = db.batch();
-    for (final gearId in gearItemIds) {
-      batch.insert('dive_log_gear', {
-        'dive_log_id': diveLogId,
-        'gear_item_id': gearId,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-    }
-    for (final text in adHocGearTexts) {
-      if (text.trim().isEmpty) continue;
-      batch.insert('dive_log_gear', {
-        'dive_log_id': diveLogId,
-        'gear_item_id': null,
-        'gear_text': text.trim(),
-      });
-    }
-    await batch.commit(noResult: true);
-  }
-
-  Future<List<GearItem>> getGearForDive(int diveLogId) async {
-    final db = await database;
-    final maps = await db.rawQuery(
-      '''
-      SELECT g.* FROM gear_items g
-      INNER JOIN dive_log_gear dg ON dg.gear_item_id = g.id
-      WHERE dg.dive_log_id = ?
-      ORDER BY g.name ASC
-    ''',
-      [diveLogId],
-    );
-    return maps.map(GearItem.fromMap).toList();
+    await db.transaction((txn) async {
+      await txn.delete(
+        'dive_log_gear',
+        where: 'dive_log_id = ?',
+        whereArgs: [diveLogId],
+      );
+      final batch = txn.batch();
+      for (final gearId in gearItemIds) {
+        batch.insert('dive_log_gear', {
+          'dive_log_id': diveLogId,
+          'gear_item_id': gearId,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final text in adHocGearTexts) {
+        if (text.trim().isEmpty) continue;
+        batch.insert('dive_log_gear', {
+          'dive_log_id': diveLogId,
+          'gear_item_id': null,
+          'gear_text': text.trim(),
+        });
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   /// Returns gear entries for a dive as [GearRef] values, preserving ad-hoc
-  /// free-text rows (which [getGearForDive] drops via its INNER JOIN). Master
+  /// free-text rows (which an INNER JOIN would drop). Master
   /// items and ad-hoc entries are ordered together by display name.
   Future<List<GearRef>> getGearEntriesForDive(int diveLogId) async {
     final db = await database;

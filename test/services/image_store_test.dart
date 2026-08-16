@@ -92,29 +92,6 @@ void main() {
     });
   });
 
-  group('createThumbnail (E3)', () {
-    test('thumbnail fits within maxSize on both dimensions', () async {
-      final source = await writeSource('big.jpg', 2000, 3000);
-      final thumbPath = await ImageStore.instance.createThumbnail(
-        source.path,
-        maxSize: 256,
-      );
-      final decoded = img.decodeImage(await File(thumbPath).readAsBytes());
-      expect(decoded, isNotNull);
-      expect(decoded!.width, lessThanOrEqualTo(256));
-      expect(decoded.height, lessThanOrEqualTo(256));
-    });
-
-    test('wide image thumbnail constrained on the long edge', () async {
-      final source = await writeSource('wide.jpg', 4000, 1000);
-      final thumbPath = await ImageStore.instance.createThumbnail(source.path);
-      final decoded = img.decodeImage(await File(thumbPath).readAsBytes());
-      expect(decoded, isNotNull);
-      expect(decoded!.width, lessThanOrEqualTo(ImageStore.kThumbnailDim));
-      expect(decoded.height, lessThanOrEqualTo(ImageStore.kThumbnailDim));
-    });
-  });
-
   group('ensureThumbnail (D-THUMB lazy)', () {
     test('generates missing thumbnail at canonical path', () async {
       final source = await writeSource('x.jpg', 1000, 1000);

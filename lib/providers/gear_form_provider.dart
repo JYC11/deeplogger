@@ -60,11 +60,8 @@ class GearFormNotifier extends AsyncNotifier<GearFormState> {
   @override
   Future<GearFormState> build() async {
     if (id == null) return const GearFormState();
-    final items = (await _db.getGearItems(limit: 100000)).items;
-    final item = items.firstWhere(
-      (g) => g.id == id,
-      orElse: () => GearItem(id: id, name: ''),
-    );
+    final item = await _db.getGearItem(id!);
+    if (item == null) return const GearFormState();
     return GearFormState(
       existingId: id,
       name: item.name,
@@ -85,6 +82,7 @@ class GearFormNotifier extends AsyncNotifier<GearFormState> {
     _update(s: state.value!.copyWith(name: v));
     _clearError('name');
   }
+
   void setTypeNotes(String v) =>
       _update(s: state.value!.copyWith(typeNotes: v));
   void setCategory(String? v) => _update(s: state.value!.copyWith(category: v));
