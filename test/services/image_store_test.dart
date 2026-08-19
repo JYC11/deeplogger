@@ -111,4 +111,38 @@ void main() {
       expect(mtime2, mtime1);
     });
   });
+
+  // F1: dive delete must clean up the copied photo file + thumbnail so they
+  // don't orphan on disk after the FK cascade removes the DB rows.
+  group('deletePhotoFiles (F1 cleanup)', () {
+    test('deletes copied photo + its thumbnail', () async {
+      final source = await writeSource('d.jpg', 800, 600);
+      final copied = await ImageStore.instance.copyToAppDir(source.path);
+      expect(await File(copied).exists(), isTrue);
+
+      // Generate a thumbnail for photoId 11 at the canonical path.
+      final thumb = await ImageStore.instance.ensureThumbnail(11, copied);
+      expect(await File(thumb).exists(), isTrue);
+
+      await ImageStore.instance.deletePhotoFiles(11, copied);
+
+      expect(await File(copied).exists(), isFalse);
+      expect(await File(thumb).exists(), isFalse);
+    });
+
+    test(
+      'null photoId skips thumbnail deletion but still drops the file',
+      () async {
+        final source = await writeSource('noid.jpg', 800, 600);
+        final copied = await ImageStore.instance.copyToAppDir(source.path);
+        await ImageStore.instance.deletePhotoFiles(null, copied);
+        expect(await File(copied).exists(), isFalse);
+      },
+    );
+
+    test('missing files are not an error (idempotent)', () async {
+      // No file was ever created at this path; the call must not throw.
+      await ImageStore.instance.deletePhotoFiles(99, '/no/such/file.jpg');
+    });
+  });
 }

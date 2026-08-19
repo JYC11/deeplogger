@@ -225,29 +225,61 @@ class DiveFormNotifier extends AsyncNotifier<DiveFormState> {
   }
 
   void setAltitude(String v) => _update(s: state.value!.copyWith(altitude: v));
-  void setMaxDepth(double? v) =>
-      _update(s: state.value!.copyWith(maxDepthM: v));
-  void setAvgDepth(double? v) =>
-      _update(s: state.value!.copyWith(avgDepthM: v));
-  void setDuration(double? v) =>
-      _update(s: state.value!.copyWith(durationMin: v));
+  void setMaxDepth(double? v) {
+    _update(s: state.value!.copyWith(maxDepthM: v));
+    _clearError('maxDepthM');
+  }
+
+  void setAvgDepth(double? v) {
+    _update(s: state.value!.copyWith(avgDepthM: v));
+    _clearError('avgDepthM');
+  }
+
+  void setDuration(double? v) {
+    _update(s: state.value!.copyWith(durationMin: v));
+    _clearError('durationMin');
+  }
+
   void setGasType(String? v) => _update(s: state.value!.copyWith(gasType: v));
-  void setGasOther(String v) => _update(s: state.value!.copyWith(gasOther: v));
+  void setGasOther(String v) {
+    _update(s: state.value!.copyWith(gasOther: v));
+    _clearError('gasOther');
+  }
+
   void setTankSize(String v) => _update(s: state.value!.copyWith(tankSize: v));
-  void setTankVolumeValue(double? v) =>
-      _update(s: state.value!.copyWith(tankVolumeValue: v));
+  void setTankVolumeValue(double? v) {
+    _update(s: state.value!.copyWith(tankVolumeValue: v));
+    _clearError('tankVolumeValue');
+  }
+
   void setTankVolumeUnit(String v) =>
       _update(s: state.value!.copyWith(tankVolumeUnit: v));
-  void setStartPressure(double? v) =>
-      _update(s: state.value!.copyWith(startPressureBar: v));
-  void setEndPressure(double? v) =>
-      _update(s: state.value!.copyWith(endPressureBar: v));
-  void setWaterTemp(double? v) =>
-      _update(s: state.value!.copyWith(waterTempC: v));
+  void setStartPressure(double? v) {
+    _update(s: state.value!.copyWith(startPressureBar: v));
+    _clearError('startPressureBar');
+  }
+
+  void setEndPressure(double? v) {
+    _update(s: state.value!.copyWith(endPressureBar: v));
+    _clearError('endPressureBar');
+  }
+
+  void setWaterTemp(double? v) {
+    _update(s: state.value!.copyWith(waterTempC: v));
+    _clearError('waterTempC');
+  }
+
   void setSalinity(String? v) => _update(s: state.value!.copyWith(salinity: v));
-  void setVisibility(double? v) =>
-      _update(s: state.value!.copyWith(visibilityM: v));
-  void setWeight(double? v) => _update(s: state.value!.copyWith(weightKg: v));
+  void setVisibility(double? v) {
+    _update(s: state.value!.copyWith(visibilityM: v));
+    _clearError('visibilityM');
+  }
+
+  void setWeight(double? v) {
+    _update(s: state.value!.copyWith(weightKg: v));
+    _clearError('weightKg');
+  }
+
   void setNotes(String v) => _update(s: state.value!.copyWith(notes: v));
   void setUnitPreference(String field, String unit) {
     final prefs = Map<String, String>.from(state.value!.unitPreferences);

@@ -1,7 +1,10 @@
-# Plan 05 — Further Feedback (2026-08-19) — PLAN ONLY, implement next session
+# Plan 05 — Further Feedback (2026-08-19) — IMPLEMENTED
 
 Source: `docs/feedback.md` → "further feedback" (7 items). Plan 04 prior items
 (B1 gear-in-form, B2 stale forms) were fixed + verified on the iOS simulator.
+
+**Status (2026-08-19): F1–F7 implemented, 188 tests pass, analyze clean.**
+iOS/Android QA still pending.
 
 ## Feedbacks → Changes
 

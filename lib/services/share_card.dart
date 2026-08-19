@@ -151,9 +151,17 @@ class _StatChip extends StatelessWidget {
   final String label;
   final String value;
 
+  /// Fixed width sized to the 1080-px canvas (F5). Using `Expanded` made
+  /// each chip ~95px wide in the narrow preview dialog and wrapped the
+  /// value char-by-char. A fixed width makes the layout display-independent
+  /// of the surrounding constraints; the preview dialog wraps the card in a
+  /// `SingleChildScrollView` so the 1080 canvas renders sanely at any size.
+  static const double width = 320;
+
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return SizedBox(
+      width: width,
       child: Container(
         margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -265,13 +273,21 @@ class ShareCardService {
         return AlertDialog(
           title: const Text('Share Card'),
           content: SingleChildScrollView(
-            child: RepaintBoundary(
-              key: boundaryKey,
-              child: ShareCard(
-                log: log,
-                photos: photos,
-                sightings: sightings,
-                sac: sac,
+            child: FittedBox(
+              // Scale the 1080-px card down to fit the dialog (F5). The
+              // RepaintBoundary still captures at the card's intrinsic size
+              // (1080 wide) because FittedBox renders its child at full
+              // intrinsic size and only scales for display.
+              fit: BoxFit.contain,
+              alignment: Alignment.topCenter,
+              child: RepaintBoundary(
+                key: boundaryKey,
+                child: ShareCard(
+                  log: log,
+                  photos: photos,
+                  sightings: sightings,
+                  sac: sac,
+                ),
               ),
             ),
           ),

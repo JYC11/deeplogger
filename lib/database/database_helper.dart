@@ -23,7 +23,12 @@ class DatabaseHelper {
   DatabaseHelper._internal();
   static final DatabaseHelper instance = DatabaseHelper._internal();
 
-  static const int _version = 1;
+  /// Current schema version (drives `onCreate`/`onUpgrade` and backup
+  /// manifest validation — `BackupService` rejects zips whose
+  /// `schemaVersion` is greater than this).
+  static const int kSchemaVersion = 1;
+
+  static const int _version = kSchemaVersion;
 
   Database? _db;
   MigrationRunner? _migrationRunner;
@@ -53,10 +58,20 @@ class DatabaseHelper {
     _migrationRunner = runner;
   }
 
+  /// Test seam: override the databases directory (returned by
+  /// `getDatabasesPath()` in production) so tests can point the helper at a
+  /// temp dir without mocking the sqflite platform channel. Must be set
+  /// before the database is (re)opened to take effect.
+  @visibleForTesting
+  String? databasesPathOverride;
+
+  Future<String> _databasesPath() async =>
+      databasesPathOverride ?? await getDatabasesPath();
+
   MigrationRunner get _runner => _migrationRunner ??= MigrationRunner();
 
   Future<Database> _open() async {
-    final dbPath = await getDatabasesPath();
+    final dbPath = await _databasesPath();
     return openDatabase(
       p.join(dbPath, 'deeplogger.db'),
       version: _version,

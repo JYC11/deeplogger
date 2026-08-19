@@ -1,49 +1,74 @@
 # DeepLogger Session State
 
 **Last updated**: 2026-08-19
-**Phase**: QA-feedback fixes landed + Plan 05 (further feedback) written — awaiting implementation next session.
+**Phase**: Plan 05 (F1–F7) implemented — 188 tests green, analyze clean. iOS/Android QA pending.
 
-## Plan 04 — QA feedback fixes (the two 2026-08-19 bugs) — DONE
-- **B1 gear not in dive form**: `gearListProvider` was a cached non-autoDispose
-  `FutureProvider`. Now `FutureProvider.autoDispose` → re-queries on each form open.
-- **B2 stale form values**: all four form providers now
-  `AsyncNotifierProvider.family(..., isAutoDispose: true)` → fresh build per open.
-- Regression tests: `test/providers/autodispose_regression_test.dart` (5).
-  Harness note: bare `ProviderContainer` reads need a held `container.listen`
-  (autoDispose tears providers down between awaits). Two existing save tests
-  adapted with subscription holds (assertions unchanged).
-- **154 tests pass, analyze clean, format applied.** Files touched:
-  `lib/providers/{dive_providers,dive_form_provider,gear_form_provider,certification_form_provider,sighting_form_provider}.dart`,
-  `test/providers/autodispose_regression_test.dart`, `test/providers/dive_form_provider_test.dart`,
-  `.plan/04-qa-feedback-fixes.md`.
+## Plan 05 — Further feedback (2026-08-19) — IMPLEMENTED
+`.plan/05-further-feedback.md`: all of F1–F7 landed this session.
 
-## iOS simulator QA (iPhone 17 Pro) — PARTIAL (user interrupted at photo-permission step)
-Verified: gear add + validation + defaults + B2 fix on gear form; **B1 verified**
-(new gear Fins/Mask visible as chips in dive form); dive create with master +
-ad-hoc gear, validation errors block save; dive saved with SAC **11.4 L/min**
-(30m/45min/200→80bar/12L ✓); **B2 verified on dive form** (reopens blank with
-Sea Level/Air defaults); detail shows SAC + imperial Details; edit preloads all
-+ gear round-trip (added Fins via edit ✓); share card preview + iOS share sheet
-+ "Save Image" → triggered photo-permission prompt (6 photos on sim).
-New finding during QA: **numeric setters don't clear validation errors** (stale
-"Must be > 0 and ≤ 600" after fixing duration) → planned as F6 in Plan 05.
-Leftover QA checklist moved into `.plan/05-further-feedback.md`.
+- **F1 dive delete**: `DiveDetailScreen` AppBar trash icon → confirm dialog →
+  read photos → `db.deleteDiveLog` (FK cascade) → `ImageStore.deletePhotoFiles`
+  per photo (file + thumbnail) → pop + `diveListNotifierProvider.refresh()`.
+  New helper: `ImageStore.deletePhotoFiles(int? photoId, String localPath)`
+  (best-effort, idempotent). Tests: `test/database/dive_delete_test.dart` (3),
+  `test/services/image_store_test.dart` (3 new under `deletePhotoFiles`).
+- **F2/F3 sightings ungated**: `_SightingsSection.trailing` always shows the +
+  IconButton (was gated on `photos.isEmpty`). Name-only sightings valid.
+  Test: `test/screens/dive_detail_screen_test.dart` (+1 widget test).
+- **F4 gear selector**: `_GearSelector` is now an `OutlinedButton` ("Select
+  gear (n)") opening `_GearSelectDialog` (modal with search field + bounded
+  scrollable checkbox list + ad-hoc entry at bottom). Inline ad-hoc field
+  kept on the form (reachable when master list empty). Tests:
+  `test/screens/dive_form_screen_test.dart` (3 new under `F4 gear selector
+  dialog`); existing 2 tests adapted (one now asserts `Add ad-hoc gear`
+  inline field still renders).
+- **F5 share card fixed-width chips**: `_StatChip` is now `SizedBox(width:
+  320)` (was `Expanded`) — sized to the 1080 canvas, no char-by-char wrap.
+  Preview dialog wraps `RepaintBoundary` in `FittedBox(fit: BoxFit.contain)`
+  so the 1080-wide card scales to the narrow AlertDialog viewport; capture
+  still produces a 1080-wide PNG. Tests: `test/services/share_card_test.dart`
+  (existing tests wrapped in FittedBox; +2 new under `ShareCard stat chips
+  (F5 fixed-width)`).
+- **F6 numeric setters clear validation errors**: every numeric setter
+  (`setMaxDepth`, `setAvgDepth`, `setDuration`, `setStartPressure`,
+  `setEndPressure`, `setWaterTemp`, `setVisibility`, `setWeight`,
+  `setTankVolumeValue`) + `setGasOther` now calls `_clearError('<fieldKey>')`
+  after `_update`. Tests: `test/providers/dive_form_provider_test.dart`
+  (+11 under `numeric setters clear validation errors (F6)`).
+- **F7 manual backup/import**: `lib/services/backup_service.dart` —
+  `BackupService.exportToZip()` builds `deeplogger_backup_<ts>.zip`
+  containing `deeplogger.db`, `images/` (dive_photos, NO thumbnails —
+  regenerable), `manifest.json` (`{format: 1, schemaVersion, exportedAt,
+  includes}`), `unit_prefs.json` (SharedPreferences `unit_pref_*` keys).
+  `importFromZip(path)` validates manifest (`format`/`schemaVersion ≤
+  kSchemaVersion`), closes DB, wipes + replaces `dive_photos/` dir + db
+  file + SharedPreferences, reopens DB. Replace-only v1 (no merge).
+  UI: `DiveListScreen` overflow menu has "Backup" (shares zip via
+  `share_plus`) + "Restore" (file_picker → confirm dialog → import →
+  list refresh). New deps: `archive ^4.1.0` (pure Dart), `file_picker
+  ^12.0.0` (native picker, offline OK). `DatabaseHelper.kSchemaVersion`
+  exposed publicly; `DatabaseHelper.databasesPathOverride` test seam
+  added. `UnitPreferencesService.prefix` made public. Tests:
+  `test/services/backup_service_test.dart` (11 — round-trip + manifest
+  validation + corrupt zip / newer schema rejection).
+- **Decisions (user-approved)**: zip {db, images, manifest}; include
+  SharedPreferences; replace-only v1; entry point in dive-list overflow
+  menu.
 
-## Plan 05 — further feedback (PLAN ONLY, implement next session)
-`.plan/05-further-feedback.md`:
-F1 dive-log delete (cascade + file/thumbnail cleanup), F2/F3 sightings ungated
-from photos (full CRUD anytime), F4 gear selector overflow → dialog multi-select
-w/ search, F5 share-card numbers vertical → fixed-width chips / no `Expanded`,
-F6 numeric setters clear validation errors, F7 backup/import brainstorm (zip
-{db, images, manifest} + file_picker import, replace-only v1 — open questions
-flagged for user), behavioral lesson (pause & ask when stuck).
-Filament lessons: `sxuzugok` (tap coords), `ybkdlx5d` (retry loop), `scfm7xih`
-(autoDispose forms).
+## iOS simulator QA (iPhone 17 Pro) — PARTIAL (from prior session, pre-F1–F7)
+Verified earlier: gear add + B1/B2 fixes; dive create with master + ad-hoc
+gear; dive saved with SAC 11.4 L/min; edit preloads all + gear round-trip;
+share card preview + iOS share sheet. **Re-QA needed after F1–F7**: delete
+flow (F1), sightings add with no photos (F2/F3), gear dialog at scale (F4),
+share card layout (F5), validation-error clearing (F6), backup/restore
+round-trip (F7). Leftover checklist in `.plan/05-further-feedback.md`.
 
 ## Git status (at session end)
-All session work committed as `c6fa49e` and pushed — `main` synced with
-`origin/main`, working tree clean.
+Working tree has F1–F7 changes uncommitted (per AGENTS.md: don't commit
+unless asked). `pubspec.yaml` gained `archive` + `file_picker` deps.
 
 ## What's next (next session)
-1. Implement Plan 05 (F1–F6; F7 after user picks options in the brainstorm).
-2. Finish iOS QA per Plan 05 leftover checklist (+ Android emulator QA).
+1. iOS simulator QA: F1 delete, F2/F3 sightings, F4 gear dialog, F5 share
+   card, F6 validation clearing, F7 backup/restore round-trip.
+2. Android emulator QA (never done).
+3. Commit F1–F7 once QA passes.

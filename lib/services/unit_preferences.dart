@@ -12,7 +12,9 @@ class UnitPreferencesService {
   static final UnitPreferencesService instance =
       UnitPreferencesService._internal();
 
-  static const String _prefix = 'unit_pref_';
+  /// Prefix for all unit-preference SharedPreferences keys. Public so the
+  /// backup service can snapshot/restore them (F7).
+  static const String prefix = 'unit_pref_';
 
   /// Test seam: inject a [SharedPreferences] instance so host tests don't need
   /// the platform channel.
@@ -40,7 +42,7 @@ class UnitPreferencesService {
     await prefs.setString(_prefKey(field), unit);
   }
 
-  String _prefKey(DiveField field) => '$_prefix${field.name}';
+  String _prefKey(DiveField field) => '$prefix${field.name}';
 
   String _fieldKey(DiveField field) {
     switch (field) {

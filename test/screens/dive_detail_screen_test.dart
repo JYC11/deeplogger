@@ -94,4 +94,31 @@ void main() {
       );
     },
   );
+
+  // F2/F3: sightings CRUD is independent of attached photos. The + button
+  // in the Marine Life section must always be visible (previously gated on
+  // `photos.isEmpty` which made adding a name-only sighting impossible).
+  testWidgets('F2/F3: sightings + button visible even with zero photos', (
+    tester,
+  ) async {
+    await _pumpDetail(tester, _fullSacLog());
+
+    // Scroll to the Marine Life section so its trailing is rendered.
+    await tester.scrollUntilVisible(
+      find.text('Marine Life'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    // The + IconButton must be present regardless of photos.
+    expect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text('Marine Life'),
+          matching: find.byType(ExpansionTile),
+        ),
+        matching: find.byIcon(Icons.add),
+      ),
+      findsOneWidget,
+    );
+  });
 }

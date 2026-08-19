@@ -111,6 +111,29 @@ class ImageStore {
     }
     return thumbPath;
   }
+
+  /// Deletes the full-size photo file and its thumbnail for [photoId] (F1).
+  /// Best-effort: missing files are not an error (they may already be gone).
+  Future<void> deletePhotoFiles(int? photoId, String localPath) async {
+    try {
+      final file = File(localPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {
+      // Best-effort; don't block the dive delete on a single file failure.
+    }
+    if (photoId == null) return;
+    try {
+      final thumbPath = await thumbnailPathFor(photoId);
+      final thumbFile = File(thumbPath);
+      if (await thumbFile.exists()) {
+        await thumbFile.delete();
+      }
+    } catch (_) {
+      // Best-effort.
+    }
+  }
 }
 
 /// Parameters passed to the isolate (must be sendable).

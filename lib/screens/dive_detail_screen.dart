@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../models/dive_log.dart';
 import '../models/dive_photo.dart';
 import '../models/gear_ref.dart';
 import '../providers/dive_providers.dart';
+import '../providers/list_providers.dart';
 import '../providers/sighting_form_provider.dart';
 import '../services/image_store.dart';
 import '../services/sac_calculator.dart';
@@ -63,6 +65,7 @@ class DiveDetailScreen extends ConsumerWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit),
+                        tooltip: 'Edit',
                         onPressed: () async {
                           await Navigator.push(
                             context,
@@ -76,6 +79,11 @@ class DiveDetailScreen extends ConsumerWidget {
                           ref.invalidate(divePhotosProvider(diveId));
                           ref.invalidate(sightingsProvider(diveId));
                         },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Delete dive',
+                        onPressed: () => _confirmDelete(context, ref, diveId),
                       ),
                     ],
                   )
@@ -95,6 +103,61 @@ class DiveDetailScreen extends ConsumerWidget {
         error: (error, _) => Center(child: Text('Error: $error')),
       ),
     );
+  }
+
+  /// F1: confirm-then-delete a dive log, its photo files + thumbnails, and
+  /// refresh the list. Cascade FK in the DB removes rows; this cleans disk.
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    int diveId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete dive?'),
+        content: const Text(
+          'This permanently removes the dive, its photos, and sightings. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final db = ref.read(databaseProvider);
+    try {
+      // Read photos first so we can clean up the copied files + thumbnails
+      // after the row delete (FK cascade would otherwise orphan the files).
+      final photos = await db.getDivePhotosForLog(diveId);
+      await db.deleteDiveLog(diveId);
+      for (final photo in photos) {
+        await ImageStore.instance.deletePhotoFiles(photo.id, photo.localPath);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    // Refresh the dive list so the deleted row disappears; the detail-scoped
+    // providers are autoDispose and would otherwise just tear down on pop.
+    unawaited(ref.read(diveListNotifierProvider.notifier).refresh());
+    if (context.mounted) Navigator.pop(context, true);
   }
 }
 
@@ -439,19 +502,16 @@ class _SightingsSection extends ConsumerWidget {
 
     return ExpansionTile(
       title: const Text('Marine Life'),
-      trailing: asyncPhotos.maybeWhen(
-        data: (photos) => photos.isEmpty
-            ? const SizedBox.shrink()
-            : IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: () => _showSightingDialog(
-                  context,
-                  ref,
-                  photos,
-                  SightingFormKey(diveLogId: diveId),
-                ),
-              ),
-        orElse: () => const SizedBox.shrink(),
+      // F2/F3: sightings CRUD is independent of attached photos. Always
+      // show the + button; name-only sightings (no dive photo) are valid.
+      trailing: IconButton(
+        icon: const Icon(Icons.add),
+        onPressed: () => _showSightingDialog(
+          context,
+          ref,
+          asyncPhotos.maybeWhen(data: (p) => p, orElse: () => <DivePhoto>[]),
+          SightingFormKey(diveLogId: diveId),
+        ),
       ),
       children: [
         asyncSightings.when(

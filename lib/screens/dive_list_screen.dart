@@ -1,13 +1,16 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../database/sort_fields.dart';
 import '../models/dive_log.dart';
 import '../providers/dive_providers.dart';
 import '../providers/list_providers.dart';
+import '../services/backup_service.dart';
 import 'certifications_screen.dart';
 import 'dive_detail_screen.dart';
 import 'dive_form_screen.dart';
@@ -90,18 +93,23 @@ class _DiveListScreenState extends ConsumerState<DiveListScreen> {
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              if (value == 'gear') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const GearListScreen()),
-                );
-              } else if (value == 'certs') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CertificationsScreen(),
-                  ),
-                );
+              switch (value) {
+                case 'gear':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const GearListScreen()),
+                  );
+                case 'certs':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CertificationsScreen(),
+                    ),
+                  );
+                case 'backup':
+                  unawaited(_exportBackup(context));
+                case 'restore':
+                  unawaited(_importBackup(context, ref));
               }
             },
             itemBuilder: (_) => [
@@ -117,6 +125,20 @@ class _DiveListScreenState extends ConsumerState<DiveListScreen> {
                 child: ListTile(
                   leading: Icon(Icons.card_membership),
                   title: Text('Certifications'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'backup',
+                child: ListTile(
+                  leading: Icon(Icons.file_upload_outlined),
+                  title: Text('Backup'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'restore',
+                child: ListTile(
+                  leading: Icon(Icons.file_download_outlined),
+                  title: Text('Restore'),
                 ),
               ),
             ],
@@ -241,6 +263,88 @@ class _DiveListScreenState extends ConsumerState<DiveListScreen> {
         return 'Max depth';
       case DiveLogSortField.durationMin:
         return 'Duration';
+    }
+  }
+
+  /// F7: build the backup zip in a temp dir and surface the iOS/Android
+  /// share sheet so the user can save it to Files / drive / etc.
+  Future<void> _exportBackup(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final zipPath = await BackupService.instance.exportToZip();
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(zipPath)], text: 'DeepLogger backup'),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Backup failed: $e')));
+    }
+  }
+
+  /// F7: pick a backup zip, confirm the destructive replace, restore it,
+  /// then refresh the dive list so the imported data shows up.
+  Future<void> _importBackup(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final picked = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const ['zip'],
+    );
+    if (picked == null || picked.path == null) return;
+    final zipPath = picked.path!;
+
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore backup?'),
+        content: const Text(
+          'This permanently replaces ALL current data (dives, photos, gear, '
+          'certifications, unit preferences) with the contents of the backup '
+          'file. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Replace'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final manifest = await BackupService.instance.importFromZip(zipPath);
+      // Refresh the dive list so imported rows appear.
+      await ref.read(diveListNotifierProvider.notifier).refresh();
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Restored backup from ${DateFormat.yMMMd().format(manifest.exportedAt)} '
+            '(${manifest.includes.length} components)',
+          ),
+        ),
+      );
+    } on BackupManifestException catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Backup invalid: ${e.message}')),
+      );
+    } on BackupSchemaException catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Cannot import: ${e.message}')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Restore failed: $e')));
     }
   }
 }

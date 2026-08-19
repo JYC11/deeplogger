@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/gear_item.dart';
 import '../providers/dive_form_provider.dart';
 import '../providers/dive_providers.dart';
 import '../services/unit_converter.dart';
@@ -407,62 +408,257 @@ class _GearSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncGear = ref.watch(gearListProvider);
-    final ctrl = TextEditingController();
 
     return asyncGear.when(
       data: (items) {
+        final selectedMasterCount = items
+            .where((g) => selectedIds.contains(g.id))
+            .length;
+        final totalCount = selectedMasterCount + adHocGear.length;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (items.isEmpty)
-              const Text(
-                'No gear items. Add some in the gear screen.',
-                style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-              )
-            else
-              Wrap(
-                children: items.map((item) {
-                  final selected = selectedIds.contains(item.id);
-                  return FilterChip(
-                    label: Text(item.name),
-                    selected: selected,
-                    onSelected: (_) => onToggle(item.id!),
-                  );
-                }).toList(),
+            // Compact launcher: a single button opens the multi-select
+            // dialog (F4). Replaces an unbounded Wrap of FilterChips that
+            // overflowed at 100+ items. Always shown (even with an empty
+            // master list) so the ad-hoc entry inside the dialog is
+            // reachable.
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: items.isEmpty
+                    ? null
+                    : () => _GearSelectDialog.show(
+                        context,
+                        items: items,
+                        selectedIds: selectedIds,
+                        adHocGear: adHocGear,
+                        onToggle: onToggle,
+                        onAddAdHoc: onAddAdHoc,
+                        onRemoveAdHoc: onRemoveAdHoc,
+                      ),
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: Text(
+                  items.isEmpty
+                      ? 'No master gear — use ad-hoc below'
+                      : (totalCount == 0
+                            ? 'Select gear'
+                            : 'Gear selected ($totalCount)'),
+                ),
               ),
-            if (adHocGear.isNotEmpty) ...[
+            ),
+            if (totalCount > 0) ...[
               const SizedBox(height: 8),
               Wrap(
-                children: adHocGear
-                    .map(
-                      (text) => FilterChip(
-                        label: Text(text),
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final item in items)
+                    if (selectedIds.contains(item.id))
+                      FilterChip(
+                        label: Text(item.name),
                         selected: true,
-                        // Tapping a selected ad-hoc chip removes it; the
-                        // boolean flips to false on tap.
-                        onSelected: (selected) =>
-                            selected ? onAddAdHoc(text) : onRemoveAdHoc(text),
-                        // Ad-hoc entries are visually distinct.
-                        avatar: const Icon(Icons.edit, size: 16),
+                        onSelected: (_) => onToggle(item.id!),
                       ),
-                    )
-                    .toList(),
+                  for (final text in adHocGear)
+                    FilterChip(
+                      label: Text(text),
+                      selected: true,
+                      avatar: const Icon(Icons.edit, size: 16),
+                      onSelected: (sel) =>
+                          sel ? onAddAdHoc(text) : onRemoveAdHoc(text),
+                    ),
+                ],
               ),
             ],
+            // Inline ad-hoc entry — kept on the form (not only in the
+            // dialog) so it's reachable even when the master list is empty.
             const SizedBox(height: 8),
+            _AdHocEntryField(onAddAdHoc: onAddAdHoc),
+          ],
+        );
+      },
+      loading: () => const Text('Loading gear...'),
+      error: (_, _) => const Text('Error loading gear'),
+    );
+  }
+}
+
+/// Inline free-text ad-hoc gear entry. Lives on the form itself (F4) so the
+/// user can add ad-hoc gear without opening the multi-select dialog (which
+/// is only useful when the master list has items).
+class _AdHocEntryField extends StatefulWidget {
+  const _AdHocEntryField({required this.onAddAdHoc});
+
+  final void Function(String) onAddAdHoc;
+
+  @override
+  State<_AdHocEntryField> createState() => _AdHocEntryFieldState();
+}
+
+class _AdHocEntryFieldState extends State<_AdHocEntryField> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final v = _ctrl.text;
+    if (v.trim().isNotEmpty) {
+      widget.onAddAdHoc(v);
+      _ctrl.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _ctrl,
+            decoration: const InputDecoration(
+              labelText: 'Add ad-hoc gear',
+              isDense: true,
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+        ),
+        IconButton(icon: const Icon(Icons.add), onPressed: _submit),
+      ],
+    );
+  }
+}
+
+/// Modal multi-select with a search field and a scrollable checkbox list
+/// (F4). The ad-hoc entry is preserved at the bottom of the dialog.
+class _GearSelectDialog extends StatefulWidget {
+  const _GearSelectDialog({
+    required this.items,
+    required this.selectedIds,
+    required this.adHocGear,
+    required this.onToggle,
+    required this.onAddAdHoc,
+    required this.onRemoveAdHoc,
+  });
+
+  final List<GearItem> items;
+  final Set<int> selectedIds;
+  final List<String> adHocGear;
+  final void Function(int) onToggle;
+  final void Function(String) onAddAdHoc;
+  final void Function(String) onRemoveAdHoc;
+
+  static void show(
+    BuildContext context, {
+    required List<GearItem> items,
+    required Set<int> selectedIds,
+    required List<String> adHocGear,
+    required void Function(int) onToggle,
+    required void Function(String) onAddAdHoc,
+    required void Function(String) onRemoveAdHoc,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _GearSelectDialog(
+        items: items,
+        selectedIds: selectedIds,
+        adHocGear: adHocGear,
+        onToggle: onToggle,
+        onAddAdHoc: onAddAdHoc,
+        onRemoveAdHoc: onRemoveAdHoc,
+      ),
+    );
+  }
+
+  @override
+  State<_GearSelectDialog> createState() => _GearSelectDialogState();
+}
+
+class _GearSelectDialogState extends State<_GearSelectDialog> {
+  final _searchCtrl = TextEditingController();
+  final _adHocCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _adHocCtrl.dispose();
+    super.dispose();
+  }
+
+  List<GearItem> get _filtered {
+    if (_query.isEmpty) return widget.items;
+    final q = _query.toLowerCase();
+    return widget.items.where((g) => g.name.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select Gear'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _searchCtrl,
+              decoration: const InputDecoration(
+                hintText: 'Search gear...',
+                prefixIcon: Icon(Icons.search),
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              // Cap the list height so it scrolls (F4) — the dialog won't
+              // overflow the screen even with hundreds of gear items.
+              child: SizedBox(
+                height: 280,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _filtered.length,
+                  itemBuilder: (context, index) {
+                    final item = _filtered[index];
+                    return CheckboxListTile(
+                      value: widget.selectedIds.contains(item.id),
+                      title: Text(item.name),
+                      dense: true,
+                      onChanged: (_) => widget.onToggle(item.id!),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const Divider(),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Ad-hoc gear',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 4),
             Row(
               children: [
                 Expanded(
                   child: TextField(
-                    controller: ctrl,
+                    controller: _adHocCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Add ad-hoc gear',
+                      hintText: 'Add free-text gear',
                       isDense: true,
+                      border: OutlineInputBorder(),
                     ),
                     onSubmitted: (v) {
                       if (v.trim().isNotEmpty) {
-                        onAddAdHoc(v);
-                        ctrl.clear();
+                        widget.onAddAdHoc(v);
+                        _adHocCtrl.clear();
                       }
                     },
                   ),
@@ -470,19 +666,42 @@ class _GearSelector extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () {
-                    if (ctrl.text.trim().isNotEmpty) {
-                      onAddAdHoc(ctrl.text);
-                      ctrl.clear();
+                    if (_adHocCtrl.text.trim().isNotEmpty) {
+                      widget.onAddAdHoc(_adHocCtrl.text);
+                      _adHocCtrl.clear();
                     }
                   },
                 ),
               ],
             ),
+            if (widget.adHocGear.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.adHocGear
+                    .map(
+                      (text) => FilterChip(
+                        label: Text(text),
+                        selected: true,
+                        avatar: const Icon(Icons.edit, size: 16),
+                        onSelected: (sel) => sel
+                            ? widget.onAddAdHoc(text)
+                            : widget.onRemoveAdHoc(text),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
           ],
-        );
-      },
-      loading: () => const Text('Loading gear...'),
-      error: (_, _) => const Text('Error loading gear'),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Done'),
+        ),
+      ],
     );
   }
 }

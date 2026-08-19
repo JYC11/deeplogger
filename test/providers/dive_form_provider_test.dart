@@ -124,6 +124,195 @@ void main() {
     });
   });
 
+  // F6: numeric setters must clear a previously-recorded validation error for
+  // their field once the user corrects the value (observed live during QA:
+  // the "Must be > 0 and ≤ 600" error stayed on screen after the duration was
+  // fixed to 45). Mirrors the existing startTime/location clear-on-edit test
+  // pattern.
+  group('DiveFormNotifier numeric setters clear validation errors (F6)', () {
+    late DiveFormNotifier notifier;
+
+    setUp(() async {
+      // Hold a listener across setUp + each test so the autoDispose provider
+      // isn't torn down between awaits (lesson `scfm7xih`).
+      final sub = container.listen(diveFormProvider(null), (_, _) {});
+      addTearDown(sub.close);
+      await container.read(diveFormProvider(null).future);
+      notifier = container.read(diveFormProvider(null).notifier);
+      notifier.setStartTime(DateTime(2026, 1, 1));
+      notifier.setLocation('Reef');
+      // Seed a failed save so the validationErrors map is populated for
+      // every numeric field at once.
+      notifier.setMaxDepth(500); // > 300
+      notifier.setAvgDepth(500); // > 300
+      notifier.setDuration(-5); // <= 0
+      notifier.setStartPressure(500); // > 400
+      notifier.setEndPressure(9999); // >= start
+      notifier.setWaterTemp(-50); // < -5
+      notifier.setWeight(999); // > 50
+      notifier.setVisibility(999); // > 100
+      notifier.setTankVolumeValue(-1); // <= 0
+      notifier.setGasType('Other');
+      notifier.setGasOther(''); // required when gas = Other
+      final ok = await notifier.save();
+      expect(ok, isFalse);
+      final errs = container
+          .read(diveFormProvider(null))
+          .requireValue
+          .validationErrors;
+      expect(errs['maxDepthM'], isNotNull);
+      expect(errs['avgDepthM'], isNotNull);
+      expect(errs['durationMin'], isNotNull);
+      expect(errs['startPressureBar'], isNotNull);
+      expect(errs['endPressureBar'], isNotNull);
+      expect(errs['waterTempC'], isNotNull);
+      expect(errs['weightKg'], isNotNull);
+      expect(errs['visibilityM'], isNotNull);
+      expect(errs['tankVolumeValue'], isNotNull);
+      expect(errs['gasOther'], isNotNull);
+    });
+
+    test('setMaxDepth clears maxDepthM', () {
+      notifier.setMaxDepth(30);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('maxDepthM'),
+        isFalse,
+      );
+    });
+
+    test('setAvgDepth clears avgDepthM', () {
+      notifier.setAvgDepth(20);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('avgDepthM'),
+        isFalse,
+      );
+    });
+
+    test('setDuration clears durationMin', () {
+      notifier.setDuration(45);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('durationMin'),
+        isFalse,
+      );
+    });
+
+    test('setStartPressure clears startPressureBar', () {
+      notifier.setStartPressure(200);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('startPressureBar'),
+        isFalse,
+      );
+    });
+
+    test('setEndPressure clears endPressureBar', () {
+      notifier.setEndPressure(80);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('endPressureBar'),
+        isFalse,
+      );
+    });
+
+    test('setWaterTemp clears waterTempC', () {
+      notifier.setWaterTemp(20);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('waterTempC'),
+        isFalse,
+      );
+    });
+
+    test('setWeight clears weightKg', () {
+      notifier.setWeight(5);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('weightKg'),
+        isFalse,
+      );
+    });
+
+    test('setVisibility clears visibilityM', () {
+      notifier.setVisibility(15);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('visibilityM'),
+        isFalse,
+      );
+    });
+
+    test('setTankVolumeValue clears tankVolumeValue', () {
+      notifier.setTankVolumeValue(12);
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('tankVolumeValue'),
+        isFalse,
+      );
+    });
+
+    test('setGasOther clears gasOther', () {
+      notifier.setGasOther('Trimix 21/35');
+      expect(
+        container
+            .read(diveFormProvider(null))
+            .requireValue
+            .validationErrors
+            .containsKey('gasOther'),
+        isFalse,
+      );
+    });
+
+    test('correcting every numeric field yields a saveable form', () async {
+      notifier.setMaxDepth(30);
+      notifier.setAvgDepth(18);
+      notifier.setDuration(45);
+      notifier.setStartPressure(200);
+      notifier.setEndPressure(80);
+      notifier.setWaterTemp(22);
+      notifier.setWeight(5);
+      notifier.setVisibility(15);
+      notifier.setTankVolumeValue(12);
+      notifier.setGasOther('Trimix 21/35');
+      final errs = container
+          .read(diveFormProvider(null))
+          .requireValue
+          .validationErrors;
+      expect(errs, isEmpty);
+      final ok = await notifier.save();
+      expect(ok, isTrue);
+    });
+  });
+
   group('DiveFormNotifier save', () {
     test('new dive inserts + gear', () async {
       final gId = await db.insertGearItem(GearItem(name: 'Fins'));
