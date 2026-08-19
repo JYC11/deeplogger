@@ -41,8 +41,8 @@ Filament lessons: `sxuzugok` (tap coords), `ybkdlx5d` (retry loop), `scfm7xih`
 (autoDispose forms).
 
 ## Git status (at session end)
-Working tree has the Plan 04 changes + tests + plans — **not committed** (no
-git mutations without explicit request).
+All session work committed as `c6fa49e` and pushed — `main` synced with
+`origin/main`, working tree clean.
 
 ## What's next (next session)
 1. Implement Plan 05 (F1–F6; F7 after user picks options in the brainstorm).
