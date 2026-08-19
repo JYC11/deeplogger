@@ -40,3 +40,16 @@ each cert should have the fields
 - Level
 - ID#
 - Image of certification (photo upload)
+
+2026-08-19
+manual QA result
+- Despite creating gear, gear does not show up in dive log creation -> fixed
+- Once forms are filled in and saved, they need to be cleared when a new form is opened (all forms) -> fixed
+further feedback
+- dive logs may need a delete button
+- marine photo sightings should be possible to add separately (you were stuck at the allow app access to photos stage)
+- only being able to add marine photo sightings when creating logs seems restrictive (full CRUD may be needed)
+- in the future when stuck endlessly during manual testing, pause and ask for clarification
+- when there is a lot of gear available to select, it may overflow a lot (haven't tested but the gear list seems to wrap) and that may need some other kind of UI
+- the share on social media option puts the numbers from top to bottom which makes it read akward. putting the numbers left to right naturally is preferred
+- additional feature request: manual backup and import from backup (no cloud, no signin etc) feature we should brainstorm together and solidify into a plan

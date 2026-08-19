@@ -146,9 +146,10 @@ class SightingFormNotifier extends AsyncNotifier<SightingFormState> {
   }
 }
 
+// AutoDispose: reopening the dialog always starts from a fresh build.
 final sightingFormProvider =
     AsyncNotifierProvider.family<
       SightingFormNotifier,
       SightingFormState,
       SightingFormKey
-    >(SightingFormNotifier.new);
+    >(SightingFormNotifier.new, isAutoDispose: true);

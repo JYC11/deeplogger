@@ -158,9 +158,10 @@ class CertificationFormNotifier extends AsyncNotifier<CertificationFormState> {
   }
 }
 
+// AutoDispose: reopening the dialog always starts from a fresh build.
 final certificationFormProvider =
     AsyncNotifierProvider.family<
       CertificationFormNotifier,
       CertificationFormState,
       int?
-    >(CertificationFormNotifier.new);
+    >(CertificationFormNotifier.new, isAutoDispose: true);

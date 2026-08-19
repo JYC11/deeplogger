@@ -429,7 +429,10 @@ class DiveFormNotifier extends AsyncNotifier<DiveFormState> {
   }
 }
 
+// AutoDispose: closing the form drops the last listener, so reopening a form
+// always starts from a fresh build (no stale field values).
 final diveFormProvider =
     AsyncNotifierProvider.family<DiveFormNotifier, DiveFormState, int?>(
       DiveFormNotifier.new,
+      isAutoDispose: true,
     );

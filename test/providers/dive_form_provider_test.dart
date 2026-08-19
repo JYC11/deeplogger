@@ -127,6 +127,10 @@ void main() {
   group('DiveFormNotifier save', () {
     test('new dive inserts + gear', () async {
       final gId = await db.insertGearItem(GearItem(name: 'Fins'));
+      // Hold a listener like the form screen does — the provider is
+      // autoDispose and would otherwise be torn down between reads.
+      final sub = container.listen(diveFormProvider(null), (_, _) {});
+      addTearDown(sub.close);
       await container.read(diveFormProvider(null).future);
       final notifier = container.read(diveFormProvider(null).notifier);
       notifier.setStartTime(DateTime(2026, 1, 1, 9));
@@ -158,6 +162,8 @@ void main() {
       );
       await db.setGearEntriesForDive(diveId, gearItemIds: [gId]);
 
+      final sub = container.listen(diveFormProvider(diveId), (_, _) {});
+      addTearDown(sub.close);
       final notifier = container.read(diveFormProvider(diveId).notifier);
       await container.read(diveFormProvider(diveId).future);
       notifier.setLocation('Updated');

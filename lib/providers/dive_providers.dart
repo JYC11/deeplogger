@@ -21,8 +21,12 @@ final diveDetailProvider = FutureProvider.autoDispose.family<DiveLog?, int>((
   return ref.watch(databaseProvider).getDiveLog(id);
 });
 
-/// All gear items (master list).
-final gearListProvider = FutureProvider<List<GearItem>>((ref) async {
+/// All gear items (master list). AutoDispose: only watched by the dive form's
+/// gear selector, so it re-queries fresh each time the form opens — gear
+/// created after a previous form visit must show up (QA 2026-08-19).
+final gearListProvider = FutureProvider.autoDispose<List<GearItem>>((
+  ref,
+) async {
   return ref.watch(databaseProvider).getAllGearItems();
 });
 

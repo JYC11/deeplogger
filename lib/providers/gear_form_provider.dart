@@ -137,7 +137,9 @@ class GearFormNotifier extends AsyncNotifier<GearFormState> {
   }
 }
 
+// AutoDispose: reopening the dialog always starts from a fresh build.
 final gearFormProvider =
     AsyncNotifierProvider.family<GearFormNotifier, GearFormState, int?>(
       GearFormNotifier.new,
+      isAutoDispose: true,
     );
