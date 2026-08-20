@@ -22,7 +22,7 @@ We are building **DeepLogger**, an offline-first dive logging mobile app (iOS/An
 - **Unit prefs**: `shared_preferences` (per-field display-unit preferences, metric-canonical storage).
 - **App icon**: `flutter_launcher_icons` (dev dep; config in `flutter_launcher_icons.yaml`, placeholder in `assets/icon_placeholder.png`, regenerate via `fvm dart run flutter_launcher_icons`).
 - **Sharing**: `share_plus`.
-- **Distribution**: Firebase App Distribution
+- **Distribution**: Firebase App Distribution. Release build & signing process documented in `docs/release-build.md` (Android upload keystore at `android/app/keystore/upload-keystore.jks`, secrets in gitignored `android/key.properties`, backup at `~/Backups/deeplogger/`). Firebase setup TODOs the user performs manually are in `docs/firebase-app-distribution.md`.
 
 ## Project Structure (Standard)
 Keep files organized in these folders:
